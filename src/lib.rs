@@ -1,11 +1,12 @@
 //! # MyID SDK — O'zbekiston MyID identifikatsiya tizimi bilan ishlash uchun Rust kutubxonasi.
-//! myid crate - dastlabki versiya, API faol ishlab chiqilmoqda.
+//! ## myid crate - dastlabki versiya, API faol ishlab chiqilmoqda.
 
 /// Crate version helper.
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// Add two numbers.
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
