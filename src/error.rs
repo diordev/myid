@@ -4,7 +4,7 @@
 //! - [`MyIdError`] — SDK ning asosiy error tipi (`thiserror::Error`)
 //! - [`MyIdResult`] — SDK ning asosiy `Result` tipi (`MyIdError`)
 
-
+/// MyID SDK xatoliklarni boshqarish moduli.
 #[derive(Debug, thiserror::Error)]
 pub enum MyIdError {
     #[error("config error at{message}")]
