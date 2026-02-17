@@ -12,7 +12,7 @@ license = "MIT"
 repository = "https://github.com/diordev/myid.git"
 keywords = ["myid","auth", "faceid", "kyc", "identification", "uzbekistan"]
 rust-version = "1.93.0"
-exclude = ["/ci", "images/", ".*", "Makefile"]
-include = [".env.example"]
+exclude = ["/ci", "images/", ".*", "/Makefile"]
+include = ["/.env.example"]
 
 [dependencies]
