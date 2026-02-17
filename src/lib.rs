@@ -8,3 +8,4 @@ pub fn version() -> &'static str {
 
 
 pub mod config;
+pub mod error;
