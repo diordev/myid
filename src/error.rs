@@ -1,8 +1,8 @@
 //! MyID SDK xatoliklarni boshqarish moduli.
 //!
 //! Modul ikki asosiy tipdan iborat:
-//! - [`MyIdError`] — SDK ning asosiy error tipi (`thiserror::Error`)
-//! - [`MyIdResult`] — SDK ning asosiy `Result` tipi (`MyIdError`)
+//! - [`MyIdError`] — MyID SDK ning asosiy error tipi (`thiserror::Error`)
+//! - [`MyIdResult`] — MyID SDK ning asosiy `Result` tipi (`MyIdError`)
 
 /// MyID SDK xatoliklarni boshqarish moduli.
 #[derive(Debug, thiserror::Error)]
@@ -20,5 +20,5 @@ impl MyIdError {
     }
 }
 
-/// Kutubxona uchun standart `Result` alias.
+/// MyID SDK ning asosiy standart `Result` alias.
 pub type MyIdResult<T, E = MyIdError> = Result<T, E>;
