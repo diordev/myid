@@ -1,3 +1,9 @@
+//! MyID SDK konfiguratsiya moduli.
+//!
+//! Ushbu modul MyID klientini ishga tushirish uchun kerak bo'ladigan
+//! konfiguratsiyani boshqaradi.
+//! 
+
 use std::borrow::Cow;
 use std::fmt;
 use std::time::Duration;

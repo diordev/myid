@@ -21,3 +21,4 @@ include = [
 ]
 
 [dependencies]
+thiserror = "2"
