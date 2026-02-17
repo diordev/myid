@@ -9,7 +9,7 @@ documentation = "https://docs.rs/myid"
 readme = "README.md"
 repository = "https://github.com/diordev/myid.git"
 license = "MIT OR Apache-2.0"
-keywords = ["myid","auth","faceid","kyc","identification", "uzbekistan"]
+keywords = ["myid","auth","faceid","identification", "uzbekistan"]
 include = [
     "README.md",
     "Cargo.toml",
