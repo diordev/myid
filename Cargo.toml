@@ -6,13 +6,22 @@ path = "src/main.rs"
 name = "myid"
 version = "0.1.0"
 edition = "2024"
+authors = ["Diyorbek Abdumutalibov", "<diordev@icloud.com>"]
 description = "Rust client library for MyID SDK API — user identification and verification"
+documentation = "https://docs.rs/myid"
 readme = "README.md"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/diordev/myid.git"
 keywords = ["myid","auth", "faceid", "kyc", "identification", "uzbekistan"]
 rust-version = "1.93.0"
 exclude = ["/ci", "images/", ".*", "/Makefile"]
-include = ["/.env.example"]
+include = [
+    "README.md",
+    "Cargo.toml",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "src/**/*.rs",
+    ".env.example"
+]
 
 [dependencies]
