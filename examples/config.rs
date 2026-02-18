@@ -13,7 +13,7 @@ use myid::error::MyIdResult;
 fn main() -> MyIdResult<()> {
     minimal_config()?;
     full_config()?;
-    corporate_proxy_config()?;
+    from_env_config()?;
     error_handling_examples();
 
     Ok(())
@@ -25,12 +25,12 @@ fn minimal_config() -> MyIdResult<()> {
 
     let cfg = Config::new("https://myid.example.uz", "app_id", "secret_123")?;
 
-    println!("Base URL:    {}", cfg.base_url());
-    println!("Client ID:   {}", cfg.client_id());
-    println!("Timeout:     {:?}", cfg.timeout());
-    println!("Conn timeout:{:?}", cfg.connection_timeout());
-    println!("User-Agent:  {}", cfg.user_agent());
-    println!("Proxy:       {:?}", cfg.proxy_url());
+    println!("Base URL:      {}", cfg.base_url());
+    println!("Client ID:     {}", cfg.client_id());
+    println!("Timeout:       {:?}", cfg.timeout());
+    println!("Conn timeout:  {:?}", cfg.connection_timeout());
+    println!("User-Agent:    {}", cfg.user_agent());
+    println!("Proxy:         {:?}", cfg.proxy_url());
     println!();
 
     // Debug output — client_secret <redacted> sifatida ko'rinadi
@@ -55,19 +55,40 @@ fn full_config() -> MyIdResult<()> {
     Ok(())
 }
 
-/// 3) Korporativ muhit — proxy va katta timeout
-fn corporate_proxy_config() -> MyIdResult<()> {
-    println!("=== Corporate Proxy Config ===\n");
+/// 3) Environment o'zgaruvchilaridan yuklash
+///
+/// Ishga tushirishdan oldin .env fayl yarating yoki env var bering:
+/// ```bash
+/// MYID_BASE_URL=https://myid.example.uz
+/// MYID_CLIENT_ID=env_app_id
+/// MYID_CLIENT_SECRET=env_secret
+/// MYID_TIMEOUT_MS=30000
+/// MYID_PROXY_URL=http://proxy:8080
+/// ```
+fn from_env_config() -> MyIdResult<()> {
+    println!("=== From Environment ===\n");
 
-    // Korporativ tarmoqlarda proxy va uzoq timeout odatiy holat
-    let cfg = Config::new("https://myid.prod.example.uz", "corp_app", "corp_secret")?
-        .with_timeout(Duration::from_secs(60))
-        .with_connect_timeout(Duration::from_secs(10))
-        .with_user_agent("corp-backend/1.0")
-        .with_proxy("https://egress-proxy.corp.local:3128")?;
+    // Default prefiks: MYID_
+    match Config::from_env(None) {
+        Ok(cfg) => {
+            println!("Base URL:      {}", cfg.base_url());
+            println!("Client ID:     {}", cfg.client_id());
+            println!("Timeout:       {:?}", cfg.timeout());
+            println!("Proxy:         {:?}", cfg.proxy_url());
+        }
+        Err(e) => {
+            println!("Env config yuklanmadi (kutilgan): {e}");
+            println!("MYID_BASE_URL, MYID_CLIENT_ID, MYID_CLIENT_SECRET o'rnating");
+        }
+    }
 
-    println!("Proxy: {:?}\n", cfg.proxy_url());
+    // Custom prefiks: APP_BASE_URL, APP_CLIENT_ID, ...
+    match Config::from_env(Some("APP")) {
+        Ok(cfg) => println!("Custom prefix:  {}", cfg.base_url()),
+        Err(e) => println!("APP_ prefix:    yuklanmadi (kutilgan): {e}"),
+    }
 
+    println!();
     Ok(())
 }
 
@@ -83,13 +104,13 @@ fn error_handling_examples() {
     let err = Config::new("ftp://example.uz", "id", "secret");
     println!("FTP scheme:       {}", err.unwrap_err());
 
+    // Bo'sh URL
+    let err = Config::new("", "id", "secret");
+    println!("Bo'sh URL:        {}", err.unwrap_err());
+
     // Noto'g'ri proxy URL
     let err = Config::new("https://example.uz", "id", "secret")
         .expect("base config xato bo'lmasligi kerak")
         .with_proxy("not-a-proxy");
-    println!("Noto'g'ri proxy:  {}", err.unwrap_err());
-
-    // Bo'sh URL
-    let err = Config::new("", "id", "secret");
-    println!("Bo'sh URL:        {}\n", err.unwrap_err());
+    println!("Noto'g'ri proxy:  {}\n", err.unwrap_err());
 }
