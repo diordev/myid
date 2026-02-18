@@ -465,6 +465,7 @@ impl Config {
     /// ```rust,ignore
     /// let endpoint = config.base_url_parsed().join("api/v1/verify")?;
     /// ```
+    #[allow(dead_code)]
     pub(crate) fn base_url_parsed(&self) -> &Url {
         &self.base_url
     }
@@ -472,6 +473,7 @@ impl Config {
     /// Proxy URL'ni [`Url`] sifatida qaytaradi.
     ///
     /// Crate ichida HTTP client proxy sozlamalari uchun ishlatiladi.
+    #[allow(dead_code)]
     pub(crate) fn proxy_url_parsed(&self) -> Option<&Url> {
         self.proxy_url.as_ref()
     }
