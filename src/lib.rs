@@ -74,7 +74,21 @@
 //!     }
 //! }
 //! ```
+//! ## Features
 //!
+//! | Feature | Default | Tavsif |
+//! |---------|---------|--------|
+//! | `dotenvy` | ✅ Ha | `.env` fayldan konfiguratsiya yuklash ([`Config::from_env()`](config::Config::from_env)) |
+//!
+//! ### `dotenvy` ni o'chirish
+//!
+//! Agar `.env` fayl qo'llab-quvvatlash kerak bo'lmasa:
+//!
+//! ```toml
+//! [dependencies]
+//! myid = { version = "0.1.2", default-features = false }
+//! ```
+//! 
 //! ## Modullar
 //!
 //! | Modul | Tavsif |
