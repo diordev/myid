@@ -1,7 +1,73 @@
 //! MyID SDK konfiguratsiya moduli.
 //!
 //! Ushbu modul MyID klientini ishga tushirish uchun kerak bo'ladigan
-//! konfiguratsiyani boshqaradi.
+//! konfiguratsiyani boshqaradi. Barcha parametrlar [`Config::new()`] orqali
+//! yaratiladi va `with_*()` metodlari bilan sozlanadi.
+//!
+//! # Arxitektura
+//!
+//! ```text
+//! Config::new(base_url, client_id, client_secret)
+//!     │
+//!     ├── parse_url()  ← URL validatsiya (faqat http/https)
+//!     ├── trailing slash normalizatsiya
+//!     └── default qiymatlar (timeout, user-agent)
+//!           │
+//!           ├── .with_timeout()           ← ixtiyoriy
+//!           ├── .with_connect_timeout()   ← ixtiyoriy
+//!           ├── .with_user_agent()        ← ixtiyoriy
+//!           └── .with_proxy()             ← ixtiyoriy
+//! ```
+//!
+//! # Misollar
+//!
+//! ## Minimal konfiguratsiya
+//!
+//! ```rust
+//! use myid::config::Config;
+//! # use myid::error::MyIdResult;
+//!
+//! # fn main() -> MyIdResult<()> {
+//! let config = Config::new(
+//!     "https://myid.uz",
+//!     "your_client_id",
+//!     "your_client_secret",
+//! )?;
+//!
+//! assert_eq!(config.base_url(), "https://myid.uz/");
+//! assert_eq!(config.user_agent(), "myid-client-rust/0.1");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## To'liq konfiguratsiya
+//!
+//! ```rust
+//! use std::time::Duration;
+//! use myid::config::Config;
+//! # use myid::error::MyIdResult;
+//!
+//! # fn main() -> MyIdResult<()> {
+//! let config = Config::new("https://myid.uz", "client_id", "client_secret")?
+//!     .with_timeout(Duration::from_secs(30))
+//!     .with_connect_timeout(Duration::from_secs(5))
+//!     .with_user_agent("my-backend/1.0")
+//!     .with_proxy("http://proxy.corp.local:8080")?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Xato holatlari
+//!
+//! ```rust
+//! use myid::config::Config;
+//!
+//! // Noto'g'ri URL — xato qaytaradi
+//! assert!(Config::new("not-a-url", "id", "secret").is_err());
+//!
+//! // FTP scheme — faqat http/https qabul qilinadi
+//! assert!(Config::new("ftp://example.uz", "id", "secret").is_err());
+//! ```
 
 use std::borrow::Cow;
 use std::fmt;
@@ -10,16 +76,28 @@ use url::Url;
 
 use crate::error::{MyIdError, MyIdResult};
 
-/// TCP/TLS ulanish uchun default timeout — 2 soniya.
+/// TCP/TLS ulanish uchun default timeout — **2 soniya** (2000 ms).
+///
+/// Agar server 2 soniya ichida TCP/TLS handshake'ni tugatmasa,
+/// ulanish bekor qilinadi. [`Config::with_connect_timeout()`] orqali o'zgartirish mumkin.
 pub const DEFAULT_CONNECT_TIMEOUT_MS: u64 = 2_000;
 
-/// Butun HTTP so'rov uchun default timeout — 15 soniya.
+/// Butun HTTP so'rov uchun default timeout — **15 soniya** (15000 ms).
+///
+/// Bu vaqt ichida server javob bermasa, so'rov bekor qilinadi.
+/// [`Config::with_timeout()`] orqali o'zgartirish mumkin.
 pub const DEFAULT_TIMEOUT_MS: u64 = 15_000;
 
 /// Default User-Agent sarlavhasi.
+///
+/// HTTP so'rovlarda `User-Agent` header sifatida yuboriladi.
+/// Observability va diagnostika uchun ishlatiladi.
 pub(crate) const DEFAULT_USER_AGENT: &str = "myid-client-rust/0.1";
 
 /// Environment o'zgaruvchilari uchun default prefiks.
+///
+/// Kelajakda `Config::from_env()` metodi uchun ishlatiladi.
+/// Masalan: `MYID_CLIENT_ID`, `MYID_CLIENT_SECRET`.
 #[allow(dead_code)]
 pub(crate) const DEFAULT_PREFIX: &str = "MYID_";
 
@@ -31,6 +109,48 @@ const _: () = {
     assert_send_sync::<Config>();
 };
 
+/// MyID SDK ning asosiy konfiguratsiya strukturasi.
+///
+/// `Config` MyID API bilan ishlash uchun kerakli barcha parametrlarni
+/// o'z ichiga oladi: API URL, OAuth credential'lar, timeout'lar,
+/// va ixtiyoriy proxy sozlamalari.
+///
+/// # Yaratish
+///
+/// `Config` faqat [`Config::new()`] orqali yaratiladi. 3 ta majburiy
+/// parametr talab qilinadi, qolganlari sensible default qiymatlarga ega:
+///
+/// ```rust
+/// # use myid::config::Config;
+/// # use myid::error::MyIdResult;
+/// # fn main() -> MyIdResult<()> {
+/// let config = Config::new("https://myid.uz", "client_id", "secret")?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Ixtiyoriy parametrlar
+///
+/// `with_*()` metodlari orqali chaining pattern bilan sozlanadi:
+///
+/// | Metod | Default qiymat | Tavsif |
+/// |-------|---------------|--------|
+/// | [`with_timeout()`](Config::with_timeout) | 15 soniya | HTTP so'rov timeout |
+/// | [`with_connect_timeout()`](Config::with_connect_timeout) | 2 soniya | TCP/TLS ulanish timeout |
+/// | [`with_user_agent()`](Config::with_user_agent) | `myid-client-rust/0.1` | HTTP User-Agent header |
+/// | [`with_proxy()`](Config::with_proxy) | `None` | Outbound HTTP/HTTPS proxy |
+///
+/// # Thread-safety
+///
+/// `Config` `Send + Sync` traitlarini implement qiladi va
+/// xavfsiz tarzda threadlar orasida share qilinishi mumkin.
+/// Bu compile-time'da kafolatlanadi.
+///
+/// # Xavfsizlik
+///
+/// - `client_secret` [`Debug`] output'da `<redacted>` sifatida ko'rsatiladi
+/// - Secret faqat [`Config::client_secret()`] orqali olinadi
+/// - Production'da secret'ni environment variable orqali bering, kodni hardcode qilmang
 #[derive(Clone)]
 pub struct Config {
     /// API bazaviy URL. Trailing slash avtomatik qo'shiladi.
@@ -47,12 +167,12 @@ pub struct Config {
     /// Debug output'da `<redacted>` sifatida ko'rsatiladi.
     client_secret: String,
 
-    /// TCP/TLS ulanish bosqichi uchun connection timeout milsekundlarda.
+    /// TCP/TLS ulanish bosqichi uchun connection timeout.
     ///
     /// Default: 2 soniya. `with_connect_timeout()` orqali o'zgartirish mumkin.
     connection_timeout_ms: Duration,
 
-    /// HTTP so'rov uchun timeout milsekundlarda.
+    /// HTTP so'rov uchun timeout.
     ///
     /// Default: 15 soniya. `with_timeout()` orqali o'zgartirish mumkin.
     timeout_ms: Duration,
@@ -71,6 +191,44 @@ pub struct Config {
 }
 
 impl Config {
+    /// Yangi `Config` instansini yaratadi.
+    ///
+    /// 3 ta majburiy parametr talab qilinadi. Qolgan barcha parametrlar
+    /// default qiymatlarga ega va `with_*()` metodlari orqali o'zgartirilishi mumkin.
+    ///
+    /// # Parametrlar
+    ///
+    /// - `base_url` — MyID API bazaviy URL (masalan: `https://myid.uz`).
+    ///   Trailing slash avtomatik qo'shiladi. Faqat `http` va `https` qabul qilinadi.
+    /// - `client_id` — OAuth 2.0 client identifikator (public).
+    /// - `client_secret` — OAuth 2.0 client secret (**maxfiy**, faqat backend'da saqlang).
+    ///
+    /// # Xatolar
+    ///
+    /// [`MyIdError::Config`] qaytaradi agar:
+    /// - `base_url` noto'g'ri URL formatida bo'lsa
+    /// - URL scheme `http` yoki `https` dan farqli bo'lsa
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    ///
+    /// # fn main() -> MyIdResult<()> {
+    /// // Minimal
+    /// let config = Config::new("https://myid.uz", "app_id", "secret")?;
+    /// assert_eq!(config.base_url(), "https://myid.uz/");
+    ///
+    /// // Trailing slash mavjud bo'lsa ham to'g'ri ishlaydi
+    /// let config = Config::new("https://myid.uz/", "app_id", "secret")?;
+    /// assert_eq!(config.base_url(), "https://myid.uz/");
+    ///
+    /// // Noto'g'ri URL xato qaytaradi
+    /// assert!(Config::new("not-a-url", "id", "secret").is_err());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn new(
         base_url: impl AsRef<str>,
         client_id: impl Into<String>,
@@ -94,28 +252,122 @@ impl Config {
 
     // --- Builder methods (with_*) ---
 
-    /// Connection timeout o'zgartirish
+    /// TCP/TLS ulanish timeout'ini o'zgartiradi.
+    ///
+    /// Bu faqat ulanish bosqichi (TCP handshake + TLS negotiation) uchun.
+    /// Server javob vaqti uchun [`Config::with_timeout()`] ishlatiladi.
+    ///
+    /// Default: **2 soniya**.
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    /// use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    ///
+    /// # fn main() -> MyIdResult<()> {
+    /// let config = Config::new("https://myid.uz", "id", "secret")?
+    ///     .with_connect_timeout(Duration::from_secs(10));
+    ///
+    /// assert_eq!(config.connection_timeout(), Duration::from_secs(10));
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
         self.connection_timeout_ms = timeout;
         self
     }
 
-    ///Request timeout o'zgartirish
+    /// HTTP so'rov timeout'ini o'zgartiradi.
+    ///
+    /// Bu butun so'rov davomiyligi uchun — ulanish, yuborish va javob qabul qilish.
+    /// Agar server shu vaqt ichida javob bermasa, so'rov bekor qilinadi.
+    ///
+    /// Default: **15 soniya**.
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    /// use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    ///
+    /// # fn main() -> MyIdResult<()> {
+    /// let config = Config::new("https://myid.uz", "id", "secret")?
+    ///     .with_timeout(Duration::from_secs(60));
+    ///
+    /// assert_eq!(config.timeout(), Duration::from_secs(60));
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout_ms = timeout;
         self
     }
 
-    /// Custom User-Agent
+    /// HTTP `User-Agent` sarlavhasini o'zgartiradi.
+    ///
+    /// `User-Agent` header har bir HTTP so'rovda yuboriladi.
+    /// Server tomonida so'rovlarni identifikatsiya qilish va
+    /// monitoring uchun foydali.
+    ///
+    /// Default: `myid-client-rust/0.1`.
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    ///
+    /// # fn main() -> MyIdResult<()> {
+    /// let config = Config::new("https://myid.uz", "id", "secret")?
+    ///     .with_user_agent("my-backend/2.0");
+    ///
+    /// assert_eq!(config.user_agent(), "my-backend/2.0");
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use]
     pub fn with_user_agent(mut self, agent: impl Into<String>) -> Self {
         self.user_agent = Cow::Owned(agent.into());
         self
     }
 
-    /// Proxy URL
+    /// Outbound HTTP/HTTPS proxy URL'ni sozlaydi.
+    ///
+    /// Korporativ tarmoqlarda internet chiqish faqat proxy orqali
+    /// bo'lishi mumkin. Bu holda shu metod orqali proxy URL beriladi.
+    ///
+    /// Faqat `http` va `https` scheme qabul qilinadi.
+    ///
+    /// # Xatolar
+    ///
+    /// [`MyIdError::Config`] qaytaradi agar:
+    /// - URL noto'g'ri formatda bo'lsa
+    /// - Scheme `http` yoki `https` dan farqli bo'lsa
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    ///
+    /// # fn main() -> MyIdResult<()> {
+    /// let config = Config::new("https://myid.uz", "id", "secret")?
+    ///     .with_proxy("http://proxy.corp.local:8080")?;
+    ///
+    /// assert!(config.proxy_url().is_some());
+    ///
+    /// // FTP proxy qabul qilinmaydi
+    /// let result = Config::new("https://myid.uz", "id", "secret")?
+    ///     .with_proxy("ftp://proxy.local");
+    /// assert!(result.is_err());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn with_proxy(mut self, url: impl AsRef<str>) -> MyIdResult<Self> {
         self.proxy_url = Some(Self::parse_url(&url)?);
         Ok(self)
@@ -123,59 +375,113 @@ impl Config {
 
     // --- Getter methods ---
 
-    /// Getter — consumer API bazaviy URL'ini qaytaradi.
+    /// API bazaviy URL'ni `&str` sifatida qaytaradi.
+    ///
+    /// Qaytariladigan URL har doim trailing slash (`/`) bilan tugaydi.
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// # use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    /// # fn main() -> MyIdResult<()> {
+    /// let config = Config::new("https://myid.uz", "id", "secret")?;
+    /// assert_eq!(config.base_url(), "https://myid.uz/");
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn base_url(&self) -> &str {
         self.base_url.as_str()
     }
 
     /// OAuth `client_id` qiymatini qaytaradi.
+    ///
+    /// Bu public identifikator — logga chiqarish xavfsiz.
     pub fn client_id(&self) -> &str {
         &self.client_id
     }
 
     /// OAuth `client_secret` qiymatini qaytaradi.
     ///
-    /// Eslatma: bu qiymat maxfiy bo'lgani uchun logga chiqarmang.
+    /// ⚠️ **Ogohlantirish:** bu qiymat maxfiy. Logga, stdout'ga yoki
+    /// tashqi tizimlarga **chiqarmang**. [`Debug`] output'da avtomatik
+    /// `<redacted>` sifatida ko'rsatiladi.
     pub fn client_secret(&self) -> &str {
         &self.client_secret
     }
 
-    /// TCP/TLS ulanish timeout'ini qaytaradi.
+    /// TCP/TLS ulanish timeout qiymatini qaytaradi.
+    ///
+    /// Default: 2 soniya. [`Config::with_connect_timeout()`] orqali o'zgartiriladi.
     pub fn connection_timeout(&self) -> Duration {
         self.connection_timeout_ms
     }
 
-    /// Butun so'rov timeout'ini qaytaradi.
+    /// HTTP so'rov timeout qiymatini qaytaradi.
+    ///
+    /// Default: 15 soniya. [`Config::with_timeout()`] orqali o'zgartiriladi.
     pub fn timeout(&self) -> Duration {
         self.timeout_ms
     }
 
-    /// HTTP `User-Agent` qiymatini qaytaradi.
+    /// HTTP `User-Agent` header qiymatini qaytaradi.
+    ///
+    /// Default: `myid-client-rust/0.1`.
     pub fn user_agent(&self) -> &str {
         self.user_agent.as_ref()
     }
 
-    /// Outbound proxy URL'ni qaytaradi (agar o'rnatilgan bo'lsa).
+    /// Proxy URL'ni `&str` sifatida qaytaradi (agar o'rnatilgan bo'lsa).
+    ///
+    /// Proxy sozlanmagan bo'lsa `None` qaytaradi.
+    ///
+    /// # Misollar
+    ///
+    /// ```rust
+    /// # use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    /// # fn main() -> MyIdResult<()> {
+    /// // Proxy yo'q
+    /// let config = Config::new("https://myid.uz", "id", "secret")?;
+    /// assert_eq!(config.proxy_url(), None);
+    ///
+    /// // Proxy bor
+    /// let config = Config::new("https://myid.uz", "id", "secret")?
+    ///     .with_proxy("http://proxy:8080")?;
+    /// assert!(config.proxy_url().is_some());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn proxy_url(&self) -> Option<&str> {
         self.proxy_url.as_ref().map(Url::as_str)
     }
 
-    // ---Crate ichida ishlatiladigan metodlar---
+    // --- Crate-internal methods ---
 
-    /// Crate ichida — endpoint join uchun
+    /// API bazaviy URL'ni [`Url`] sifatida qaytaradi.
+    ///
+    /// Crate ichida endpoint yaratish uchun ishlatiladi:
+    ///
+    /// ```rust,ignore
+    /// let endpoint = config.base_url_parsed().join("api/v1/verify")?;
+    /// ```
     pub(crate) fn base_url_parsed(&self) -> &Url {
         &self.base_url
     }
 
-    /// Crate ichida — Url kerak bo'lganda
+    /// Proxy URL'ni [`Url`] sifatida qaytaradi.
+    ///
+    /// Crate ichida HTTP client proxy sozlamalari uchun ishlatiladi.
     pub(crate) fn proxy_url_parsed(&self) -> Option<&Url> {
         self.proxy_url.as_ref()
     }
 
-    // ---Private methods---
+    // --- Private methods ---
 
     /// URL stringni parse va validate qiladi.
+    ///
     /// Faqat `http` va `https` scheme qabul qiladi.
+    /// Boshqa schemalar (ftp, ws, va h.k.) rad etiladi.
     fn parse_url(raw: impl AsRef<str>) -> MyIdResult<Url> {
         let url = Url::parse(raw.as_ref())
             .map_err(|e| MyIdError::config(format!("invalid URL `{}`: {e}", raw.as_ref())))?;
@@ -189,10 +495,29 @@ impl Config {
     }
 }
 
-/// `Debug` implementatsiyasi `client_secret` ni yashiradi.
+/// [`Debug`] implementatsiyasi `client_secret` ni yashiradi.
 ///
 /// Log yoki panic output'da credential'lar sizib chiqishining oldini oladi.
 /// `client_id` ochiq ko'rsatiladi — bu public identifikator.
+///
+/// # Misol
+///
+/// ```rust
+/// # use myid::config::Config;
+/// # use myid::error::MyIdResult;
+/// # fn main() -> MyIdResult<()> {
+/// let config = Config::new("https://myid.uz", "my_app", "super_secret")?;
+/// let debug = format!("{:?}", config);
+///
+/// // Secret ko'rinmaydi
+/// assert!(debug.contains("<redacted>"));
+/// assert!(!debug.contains("super_secret"));
+///
+/// // Client ID ko'rinadi
+/// assert!(debug.contains("my_app"));
+/// # Ok(())
+/// # }
+/// ```
 impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Config")
