@@ -71,7 +71,8 @@
 //!     Ok(cfg) => println!("Muvaffaqiyatli: {}", cfg.base_url()),
 //!     Err(MyIdError::Config { message }) => {
 //!         eprintln!("Konfiguratsiya xatosi: {message}");
-//!     }
+//!     },
+//!     _ => unreachable!(),
 //! }
 //! ```
 //! ## Features
@@ -88,13 +89,14 @@
 //! [dependencies]
 //! myid = { version = "0.1.2", default-features = false }
 //! ```
-//! 
+//!
 //! ## Modullar
 //!
 //! | Modul | Tavsif |
 //! |-------|--------|
 //! | [`config`] | SDK konfiguratsiyasi — URL, timeout, proxy, user-agent |
 //! | [`error`] | Xatolar tipi (`MyIdError`) va `Result` aliasi |
+//! | [`client`] | MyID tizimiga backend orqali so'rovlar yuborish |
 //!
 //! ## Xavfsizlik eslatmalari
 //!
@@ -104,7 +106,15 @@
 //!
 //! ## Minimal Rust versiyasi (MSRV)
 //!
-//! Rust **1.85.0** yoki undan yuqori talab qilinadi.
+//! Rust **1.93.0** yoki undan yuqori talab qilinadi.
 
+pub mod client;
 pub mod config;
+pub mod dto;
 pub mod error;
+pub mod prelude;
+pub mod types;
+
+pub use client::MyIdClient;
+pub use config::Config;
+pub use error::{MyIdError, MyIdResult};
