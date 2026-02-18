@@ -32,7 +32,7 @@
 //!
 //! ## Konfiguratsiya
 //!
-//! [`Config`](config::Config) — SDK ning asosiy konfiguratsiya strukturasi.
+//! [`Config`] — SDK ning asosiy konfiguratsiya strukturasi.
 //! Barcha parametrlar `new()` + `with_*()` chaining pattern orqali sozlanadi:
 //!
 //! ```rust
@@ -54,7 +54,7 @@
 //!
 //! ## Xatolarni boshqarish
 //!
-//! SDK barcha xatolarni [`MyIdError`](error::MyIdError) enum orqali qaytaradi.
+//! SDK barcha xatolarni [`MyIdError`] enum orqali qaytaradi.
 //! Qulay ishlatish uchun [`MyIdResult<T>`](error::MyIdResult) type aliasi mavjud:
 //!
 //! ```rust
