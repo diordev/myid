@@ -7,8 +7,8 @@
 
 use std::time::Duration;
 
-use myid::config::Config;
-use myid::error::MyIdResult;
+use myid::Config;
+use myid::MyIdResult;
 
 fn main() -> MyIdResult<()> {
     minimal_config()?;

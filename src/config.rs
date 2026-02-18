@@ -556,7 +556,6 @@ impl Config {
     /// ```rust,ignore
     /// let endpoint = config.base_url_parsed().join("api/v1/verify")?;
     /// ```
-    #[allow(dead_code)]
     pub(crate) fn base_url_parsed(&self) -> &Url {
         &self.base_url
     }

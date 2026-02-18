@@ -1,7 +1,7 @@
 use std::{self, time::Duration};
 
 use myid::config::{Config, DEFAULT_CONNECT_TIMEOUT_MS, DEFAULT_TIMEOUT_MS};
-use myid::error::MyIdResult;
+use myid::prelude::*;
 
 // ===== Happy path =====
 
