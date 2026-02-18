@@ -1,18 +1,18 @@
 //! MyID SDK konfiguratsiya moduli.
 //!
 //! Ushbu modul MyID klientini ishga tushirish uchun kerak bo'ladigan
-//! konfiguratsiyani boshqaradi. Barcha parametrlar [`Config::new()`] orqali
-//! yaratiladi va `with_*()` metodlari bilan sozlanadi.
+//! konfiguratsiyani boshqaradi. Barcha parametrlar [`Config::new()`] yoki
+//! [`Config::from_env()`] orqali yaratiladi va `with_*()` metodlari bilan sozlanadi.
 //!
 //! # Arxitektura
 //!
 //! ```text
 //! Config::new(base_url, client_id, client_secret)
-//!     │
-//!     ├── parse_url()  ← URL validatsiya (faqat http/https)
-//!     ├── trailing slash normalizatsiya
-//!     └── default qiymatlar (timeout, user-agent)
-//!           │
+//!     │                                           Config::from_env(prefix)
+//!     ├── parse_url()  ← URL validatsiya               │
+//!     ├── normalize_url() ← trailing slash             ├── .env fayl yuklash (dotenvy)
+//!     └── default qiymatlar                            ├── env o'zgaruvchilarini o'qish
+//!           │                                          └── parse_url() + normalize_url()
 //!           ├── .with_timeout()           ← ixtiyoriy
 //!           ├── .with_connect_timeout()   ← ixtiyoriy
 //!           ├── .with_user_agent()        ← ixtiyoriy
@@ -57,6 +57,19 @@
 //! # }
 //! ```
 //!
+//! ## Environment o'zgaruvchilaridan yuklash
+//!
+//! ```rust,no_run
+//! use myid::config::Config;
+//! # use myid::error::MyIdResult;
+//!
+//! # fn main() -> MyIdResult<()> {
+//! // .env fayldan yoki environment'dan yuklaydi
+//! let config = Config::from_env(None)?; // MYID_ prefiksi
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ## Xato holatlari
 //!
 //! ```rust
@@ -69,9 +82,7 @@
 //! assert!(Config::new("ftp://example.uz", "id", "secret").is_err());
 //! ```
 
-use std::borrow::Cow;
-use std::fmt;
-use std::time::Duration;
+use std::{borrow::Cow, env, fmt, time::Duration};
 use url::Url;
 
 use crate::error::{MyIdError, MyIdResult};
@@ -96,9 +107,8 @@ pub(crate) const DEFAULT_USER_AGENT: &str = "myid-client-rust/0.1";
 
 /// Environment o'zgaruvchilari uchun default prefiks.
 ///
-/// Kelajakda `Config::from_env()` metodi uchun ishlatiladi.
-/// Masalan: `MYID_CLIENT_ID`, `MYID_CLIENT_SECRET`.
-#[allow(dead_code)]
+/// [`Config::from_env()`] metodi uchun ishlatiladi.
+/// Masalan: `MYID_BASE_URL`, `MYID_CLIENT_ID`, `MYID_CLIENT_SECRET`.
 pub(crate) const DEFAULT_PREFIX: &str = "MYID_";
 
 // Compile-time kafolat: Config xavfsiz tarzda threadlar orasida
@@ -117,8 +127,10 @@ const _: () = {
 ///
 /// # Yaratish
 ///
-/// `Config` faqat [`Config::new()`] orqali yaratiladi. 3 ta majburiy
-/// parametr talab qilinadi, qolganlari sensible default qiymatlarga ega:
+/// Ikki usulda yaratiladi:
+///
+/// 1. **To'g'ridan-to'g'ri** — [`Config::new()`] orqali
+/// 2. **Environment'dan** — [`Config::from_env()`] orqali (`.env` fayl qo'llab-quvvatlanadi)
 ///
 /// ```rust
 /// # use myid::config::Config;
@@ -234,19 +246,98 @@ impl Config {
         client_id: impl Into<String>,
         client_secret: impl Into<String>,
     ) -> MyIdResult<Self> {
-        let mut url = Self::parse_url(&base_url)?;
+        let base_url = Self::parse_and_normalize_url(&base_url)?;
 
-        if !url.path().ends_with('/') {
-            url.set_path(&format!("{}/", url.path()));
-        }
         Ok(Self {
-            base_url: url,
+            base_url,
             client_id: client_id.into(),
             client_secret: client_secret.into(),
             connection_timeout_ms: Duration::from_millis(DEFAULT_CONNECT_TIMEOUT_MS),
             timeout_ms: Duration::from_millis(DEFAULT_TIMEOUT_MS),
             user_agent: Cow::Borrowed(DEFAULT_USER_AGENT),
             proxy_url: None,
+        })
+    }
+
+    /// Environment o'zgaruvchilaridan `Config` yaratadi.
+    ///
+    /// `dotenvy` feature yoqilgan bo'lsa, `.env` fayli avtomatik yuklanadi.
+    ///
+    /// # Parametrlar
+    ///
+    /// - `prefix` — env o'zgaruvchilari prefiksi. `None` bo'lsa `MYID_` ishlatiladi.
+    ///   Prefiksga `_` avtomatik qo'shiladi (masalan: `"APP"` → `"APP_"`).
+    ///
+    /// # O'qiladigan env o'zgaruvchilari
+    ///
+    /// | O'zgaruvchi                  | Turi     | Default               |
+    /// |------------------------------|----------|-----------------------|
+    /// | `{prefix}BASE_URL`           | Majburiy | —                     |
+    /// | `{prefix}CLIENT_ID`          | Majburiy | —                     |
+    /// | `{prefix}CLIENT_SECRET`      | Majburiy | —                     |
+    /// | `{prefix}CONNECT_TIMEOUT_MS` | u64      | 2000                  |
+    /// | `{prefix}TIMEOUT_MS`         | u64      | 15000                 |
+    /// | `{prefix}USER_AGENT`         | String   | `myid-client-rust/0.1`|
+    /// | `{prefix}PROXY_URL`          | URL      | `None`                |
+    ///
+    /// # Xatolar
+    ///
+    /// [`MyIdError::Config`] qaytaradi agar:
+    /// - Majburiy o'zgaruvchi topilmasa yoki bo'sh bo'lsa
+    /// - URL yoki proxy URL noto'g'ri formatda bo'lsa
+    /// - Timeout qiymati `u64` ga parse bo'lmasa yoki `0` bo'lsa
+    ///
+    /// # Misollar
+    ///
+    /// ```rust,no_run
+    /// use myid::config::Config;
+    /// # use myid::error::MyIdResult;
+    ///
+    /// # fn main() -> MyIdResult<()> {
+    /// // Default prefiks (MYID_BASE_URL, MYID_CLIENT_ID, ...)
+    /// let config = Config::from_env(None)?;
+    ///
+    /// // Custom prefiks (APP_BASE_URL, APP_CLIENT_ID, ...)
+    /// let config = Config::from_env(Some("APP"))?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_env(prefix: Option<&str>) -> MyIdResult<Self> {
+        #[cfg(feature = "dotenvy")]
+        {
+            let _ = dotenvy::dotenv();
+        }
+
+        let p = Self::normalize_prefix(prefix.unwrap_or(DEFAULT_PREFIX));
+
+        let base_url =
+            Self::parse_and_normalize_url(&Self::read_required(&format!("{p}BASE_URL"))?)?;
+        let client_id = Self::read_required(&format!("{p}CLIENT_ID"))?;
+        let client_secret = Self::read_required(&format!("{p}CLIENT_SECRET"))?;
+
+        let connection_timeout_ms = Self::read_u64_or_default(
+            &format!("{p}CONNECT_TIMEOUT_MS"),
+            DEFAULT_CONNECT_TIMEOUT_MS,
+        )?;
+        let timeout_ms = Self::read_u64_or_default(&format!("{p}TIMEOUT_MS"), DEFAULT_TIMEOUT_MS)?;
+
+        let user_agent: Cow<'static, str> = match Self::read_optional(&format!("{p}USER_AGENT")) {
+            Some(ua) => Cow::Owned(ua),
+            None => Cow::Borrowed(DEFAULT_USER_AGENT),
+        };
+
+        let proxy_url = Self::read_optional(&format!("{p}PROXY_URL"))
+            .map(|raw| Self::parse_url(&raw))
+            .transpose()?;
+
+        Ok(Self {
+            base_url,
+            client_id,
+            client_secret,
+            connection_timeout_ms: Duration::from_millis(connection_timeout_ms),
+            timeout_ms: Duration::from_millis(timeout_ms),
+            user_agent,
+            proxy_url,
         })
     }
 
@@ -465,6 +556,7 @@ impl Config {
     /// ```rust,ignore
     /// let endpoint = config.base_url_parsed().join("api/v1/verify")?;
     /// ```
+    #[allow(dead_code)]
     pub(crate) fn base_url_parsed(&self) -> &Url {
         &self.base_url
     }
@@ -472,11 +564,25 @@ impl Config {
     /// Proxy URL'ni [`Url`] sifatida qaytaradi.
     ///
     /// Crate ichida HTTP client proxy sozlamalari uchun ishlatiladi.
+    #[allow(dead_code)]
     pub(crate) fn proxy_url_parsed(&self) -> Option<&Url> {
         self.proxy_url.as_ref()
     }
 
     // --- Private methods ---
+
+    /// URL stringni parse, validate va normalize qiladi.
+    ///
+    /// Faqat `http` va `https` scheme qabul qiladi.
+    /// Trailing slash avtomatik qo'shiladi.
+    fn parse_and_normalize_url(raw: impl AsRef<str>) -> MyIdResult<Url> {
+        let mut url = Self::parse_url(&raw)?;
+
+        if !url.path().ends_with('/') {
+            url.set_path(&format!("{}/", url.path()));
+        }
+        Ok(url)
+    }
 
     /// URL stringni parse va validate qiladi.
     ///
@@ -491,6 +597,70 @@ impl Config {
             other => Err(MyIdError::config(format!(
                 "only http/https are accepted, given: {other}"
             ))),
+        }
+    }
+
+    /// Prefiksni normalizatsiya qiladi — oxirida `_` bo'lishini kafolatlaydi.
+    ///
+    /// - Bo'sh string → `MYID_` (default)
+    /// - `"APP"` → `"APP_"`
+    /// - `"APP_"` → `"APP_"` (o'zgarishsiz)
+    fn normalize_prefix(prefix: &str) -> String {
+        let s = prefix.trim();
+        if s.is_empty() {
+            return DEFAULT_PREFIX.to_string();
+        }
+        if s.ends_with('_') {
+            s.to_string()
+        } else {
+            format!("{s}_")
+        }
+    }
+
+    /// Majburiy env o'zgaruvchisini o'qiydi.
+    ///
+    /// Topilmasa yoki bo'sh bo'lsa xato qaytaradi. Qiymat `trim()` qilinadi.
+    fn read_required(key: &str) -> MyIdResult<String> {
+        let value =
+            env::var(key).map_err(|_| MyIdError::config(format!("missing env var: {key}")))?;
+
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return Err(MyIdError::config(format!("empty env var: {key}")));
+        }
+        Ok(trimmed.to_owned())
+    }
+
+    /// Ixtiyoriy env o'zgaruvchisini o'qiydi.
+    ///
+    /// Topilmasa yoki bo'sh bo'lsa `None` qaytaradi.
+    fn read_optional(key: &str) -> Option<String> {
+        env::var(key).ok().and_then(|v| {
+            let trimmed = v.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_owned())
+            }
+        })
+    }
+
+    /// Env o'zgaruvchisidan `u64` o'qiydi, topilmasa default ishlatadi.
+    ///
+    /// Qiymat `0` bo'lsa xato qaytaradi (timeout uchun mantiqsiz).
+    fn read_u64_or_default(key: &str, default: u64) -> MyIdResult<u64> {
+        match Self::read_optional(key) {
+            None => Ok(default),
+            Some(v) => {
+                let parsed: u64 = v
+                    .parse()
+                    .map_err(|_| MyIdError::config(format!("invalid u64: {key}={v}")))?;
+
+                if parsed == 0 {
+                    return Err(MyIdError::config(format!("{key} must be > 0")));
+                }
+                Ok(parsed)
+            }
         }
     }
 }

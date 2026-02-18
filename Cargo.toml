@@ -18,12 +18,18 @@ include = [
     "LICENSE-MIT",
     "src/**/*.rs",
     "examples/",
+    "tests/",
     ".env.example",
 ]
+
+[features]
+default = ["dotenvy"]
+dotenvy = ["dep:dotenvy"]
 
 [dependencies]
 thiserror = "2"
 url = "2"
+dotenvy = { version = "0.15", optional = true }
 
 [dev-dependencies]
 
