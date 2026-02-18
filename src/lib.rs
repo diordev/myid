@@ -1,11 +1,96 @@
-//! # MyID SDK — O'zbekiston MyID identifikatsiya tizimi bilan ishlash uchun Rust kutubxonasi.
-//! ## myid crate - dastlabki versiya, API faol ishlab chiqilmoqda.
-
-/// Crate version helper.
-pub fn version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
-}
-
+//! # MyID SDK — Rust Client
+//!
+//! O'zbekiston Respublikasi MyID identifikatsiya tizimi uchun
+//! rasmiy bo'lmagan Rust SDK kutubxonasi.
+//!
+//! ## Imkoniyatlar
+//!
+//! - **OAuth 2.0** — MyID API bilan autentifikatsiya
+//! - **Type-safe config** — compile-time'da URL va parametrlar validatsiyasi
+//! - **Async/await** — `tokio` runtime bilan to'liq asinxron ishlash
+//! - **Xavfsizlik** — `client_secret` `Debug` outputda yashiriladi
+//! - **Thread-safe** — `Send + Sync` compile-time kafolati
+//!
+//! ## Tez boshlash
+//!
+//! ```rust
+//! use myid::config::Config;
+//! use myid::error::MyIdResult;
+//!
+//! fn main() -> MyIdResult<()> {
+//!     // Minimal config — faqat majburiy parametrlar
+//!     let config = Config::new(
+//!         "https://myid.uz",
+//!         "your_client_id",
+//!         "your_client_secret",
+//!     )?;
+//!
+//!     println!("Base URL: {}", config.base_url());
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Konfiguratsiya
+//!
+//! [`Config`](config::Config) — SDK ning asosiy konfiguratsiya strukturasi.
+//! Barcha parametrlar `new()` + `with_*()` chaining pattern orqali sozlanadi:
+//!
+//! ```rust
+//! use std::time::Duration;
+//! use myid::config::Config;
+//! # use myid::error::MyIdResult;
+//!
+//! # fn main() -> MyIdResult<()> {
+//! let config = Config::new("https://myid.uz", "client_id", "client_secret")?
+//!     .with_timeout(Duration::from_secs(30))
+//!     .with_connect_timeout(Duration::from_secs(5))
+//!     .with_user_agent("my-backend/1.0")
+//!     .with_proxy("http://proxy.local:8080")?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! Batafsil ma'lumot uchun [`config`] moduli dokumentatsiyasini ko'ring.
+//!
+//! ## Xatolarni boshqarish
+//!
+//! SDK barcha xatolarni [`MyIdError`](error::MyIdError) enum orqali qaytaradi.
+//! Qulay ishlatish uchun [`MyIdResult<T>`](error::MyIdResult) type aliasi mavjud:
+//!
+//! ```rust
+//! use myid::config::Config;
+//! use myid::error::{MyIdError, MyIdResult};
+//!
+//! fn create_config() -> MyIdResult<()> {
+//!     let config = Config::new("https://myid.uz", "id", "secret")?;
+//!     Ok(())
+//! }
+//!
+//! // Xatoni ushlash
+//! match Config::new("noto'g'ri-url", "id", "secret") {
+//!     Ok(cfg) => println!("Muvaffaqiyatli: {}", cfg.base_url()),
+//!     Err(MyIdError::Config { message }) => {
+//!         eprintln!("Konfiguratsiya xatosi: {message}");
+//!     }
+//! }
+//! ```
+//!
+//! ## Modullar
+//!
+//! | Modul | Tavsif |
+//! |-------|--------|
+//! | [`config`] | SDK konfiguratsiyasi — URL, timeout, proxy, user-agent |
+//! | [`error`] | Xatolar tipi (`MyIdError`) va `Result` aliasi |
+//!
+//! ## Xavfsizlik eslatmalari
+//!
+//! - `client_secret` — **faqat backend muhitida** saqlang
+//! - `Debug` output'da secret avtomatik `<redacted>` sifatida ko'rsatiladi
+//! - Frontend yoki client-side kodda **ishlatmang**
+//!
+//! ## Minimal Rust versiyasi (MSRV)
+//!
+//! Rust **1.85.0** yoki undan yuqori talab qilinadi.
 
 pub mod config;
 pub mod error;
