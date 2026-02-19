@@ -225,8 +225,6 @@ cargo run --example config
 # Client va session misollari (.env fayl kerak)
 cargo run --example client
 
-# Tezkor ishga tushirish misoli
-cargo run --example main
 ```
 
 `.env` fayl namunasi:
