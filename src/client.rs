@@ -42,8 +42,10 @@
 //! # }
 //! ```
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+use tokio::sync::Mutex;
 
 use reqwest::{Client, Proxy};
 use url::Url;
@@ -181,12 +183,12 @@ impl MyIdClient {
     /// 2. Cache bo'sh yoki expired → API ga so'rov (`authenticate`)
     /// 3. Yangi tokenni cache'ga yozish
     pub async fn get_token(&self) -> MyIdResult<String> {
-        if let Some(token) = self.read_cached_token()? {
+        if let Some(token) = self.read_cached_token().await {
             return Ok(token);
         }
 
         let fresh = self.authenticate().await?;
-        self.write_cached_token(fresh)
+        self.write_cached_token(fresh).await
     }
 
     // --- Private: API methods ---
@@ -208,38 +210,43 @@ impl MyIdClient {
     // --- Private: Token cache ---
 
     /// Cache'dan tokenni o'qiydi.
-    fn read_cached_token(&self) -> MyIdResult<Option<String>> {
-        let guard = self
-            .token
-            .lock()
-            .map_err(|_| MyIdError::internal("token cache lock poisoned"))?;
-
-        Ok(guard.as_ref().and_then(|state| {
+    async fn read_cached_token(&self) -> Option<String> {
+        let guard = self.token.lock().await;
+        guard.as_ref().and_then(|state| {
             if state.is_valid(self.token_refresh_margin) {
                 Some(state.access_token.clone())
             } else {
                 None
             }
-        }))
+        })
     }
 
     /// Yangi tokenni cache'ga yozadi va token stringni qaytaradi.
-    fn write_cached_token(&self, token: AccessTokenResponse) -> MyIdResult<String> {
-        let now = Instant::now();
-        let expires_at = now + Duration::from_secs(token.expires_in);
-        let access_token = token.access_token;
+    async fn write_cached_token(&self, token: AccessTokenResponse) -> MyIdResult<String> {
+        const MAX_TTL_SECS: u64 = 31_536_000; // 365 kun
 
-        let mut guard = self
-            .token
-            .lock()
-            .map_err(|_| MyIdError::internal("token cache lock poisoned"))?;
+        if token.expires_in == 0 {
+            return Err(MyIdError::internal("expires_in must be > 0"));
+        }
 
+        if token.expires_in > MAX_TTL_SECS {
+            return Err(MyIdError::internal(format!(
+                "expires_in too large: {}",
+                token.expires_in
+            )));
+        }
+
+        let expires_at = Instant::now()
+            .checked_add(Duration::from_secs(token.expires_in))
+            .ok_or_else(|| MyIdError::internal("expires_at overflow"))?;
+
+        let mut guard = self.token.lock().await;
         *guard = Some(TokenState {
-            access_token: access_token.clone(),
+            access_token: token.access_token.clone(),
             expires_at,
         });
 
-        Ok(access_token)
+        Ok(token.access_token)
     }
 
     // --- Private: Helpers ---

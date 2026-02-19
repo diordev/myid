@@ -56,6 +56,7 @@ pub struct SessionWithPinfl {
 }
 
 impl SessionWithPinfl {
+    /// Yangi `SessionWithPinfl` yaratadi (faqat majburiy fieldlar).
     pub fn new(pinfl: Pinfl, birth_date: BirthDate) -> Self {
         Self {
             pinfl,
@@ -66,40 +67,52 @@ impl SessionWithPinfl {
         }
     }
 
+    /// Telefon raqamini qo'shadi (ixtiyoriy).
     #[must_use]
     pub fn with_phone_number(mut self, phone_number: PhoneNumber) -> Self {
         self.phone_number = Some(phone_number);
         self
     }
 
+    /// Rezidentlik belgisini o'rnatadi (ixtiyoriy).
+    ///
+    /// `true` — O'zbekiston rezidenti, `false` — xorijiy fuqaro.
     #[must_use]
     pub fn with_is_resident(mut self, is_resident: bool) -> Self {
         self.is_resident = Some(is_resident);
         self
     }
 
+    /// Face matching aniqlik darajasini o'rnatadi (ixtiyoriy).
+    ///
+    /// Berilmasa server default qiymatini ishlatadi.
     #[must_use]
     pub fn with_threshold(mut self, threshold: Threshold) -> Self {
         self.threshold = Some(threshold);
         self
     }
 
+    /// PINFL qiymatini qaytaradi.
     pub fn pinfl(&self) -> &Pinfl {
         &self.pinfl
     }
 
+    /// Tug'ilgan sanani qaytaradi.
     pub fn birth_date(&self) -> BirthDate {
         self.birth_date
     }
 
+    /// Telefon raqamini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn phone_number(&self) -> Option<&PhoneNumber> {
         self.phone_number.as_ref()
     }
 
+    /// Rezidentlik belgisini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn is_resident(&self) -> Option<bool> {
         self.is_resident
     }
 
+    /// Face matching threshold qiymatini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn threshold(&self) -> Option<Threshold> {
         self.threshold
     }
@@ -134,6 +147,7 @@ pub struct SessionWithPassport {
 }
 
 impl SessionWithPassport {
+    /// Yangi `SessionWithPassport` yaratadi (faqat majburiy fieldlar).
     pub fn new(pass_data: PassportData, birth_date: BirthDate) -> Self {
         Self {
             pass_data,
@@ -144,40 +158,48 @@ impl SessionWithPassport {
         }
     }
 
+    /// Telefon raqamini qo'shadi (ixtiyoriy).
     #[must_use]
     pub fn with_phone_number(mut self, phone_number: PhoneNumber) -> Self {
         self.phone_number = Some(phone_number);
         self
     }
 
+    /// Rezidentlik belgisini o'rnatadi (ixtiyoriy).
     #[must_use]
     pub fn with_is_resident(mut self, is_resident: bool) -> Self {
         self.is_resident = Some(is_resident);
         self
     }
 
+    /// Face matching aniqlik darajasini o'rnatadi (ixtiyoriy).
     #[must_use]
     pub fn with_threshold(mut self, threshold: Threshold) -> Self {
         self.threshold = Some(threshold);
         self
     }
 
+    /// Pasport seriya va raqamini qaytaradi.
     pub fn pass_data(&self) -> &PassportData {
         &self.pass_data
     }
 
+    /// Tug'ilgan sanani qaytaradi.
     pub fn birth_date(&self) -> BirthDate {
         self.birth_date
     }
 
+    /// Telefon raqamini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn phone_number(&self) -> Option<&PhoneNumber> {
         self.phone_number.as_ref()
     }
 
+    /// Rezidentlik belgisini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn is_resident(&self) -> Option<bool> {
         self.is_resident
     }
 
+    /// Face matching threshold qiymatini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn threshold(&self) -> Option<Threshold> {
         self.threshold
     }
@@ -206,6 +228,7 @@ pub struct SessionWithReuid {
 }
 
 impl SessionWithReuid {
+    /// Yangi `SessionWithReuid` yaratadi.
     pub fn new(reuid: Reuid) -> Self {
         Self {
             reuid,
@@ -213,16 +236,19 @@ impl SessionWithReuid {
         }
     }
 
+    /// Telefon raqamini qo'shadi (ixtiyoriy).
     #[must_use]
     pub fn with_phone_number(mut self, phone_number: PhoneNumber) -> Self {
         self.phone_number = Some(phone_number);
         self
     }
 
+    /// REUID qiymatini qaytaradi.
     pub fn reuid(&self) -> Reuid {
         self.reuid
     }
 
+    /// Telefon raqamini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn phone_number(&self) -> Option<&PhoneNumber> {
         self.phone_number.as_ref()
     }
@@ -247,19 +273,25 @@ pub enum CreateSessionRequest {
 
 // ─── Response ───
 
-/// Session yaratish javobi.
+/// Session yaratish muvaffaqiyatli bo'lganda qaytariladigan javob.
+///
+/// `session_id` — keyingi so'rovlarda (status, natija) ishlatiladi.
 #[derive(Debug, Deserialize)]
 pub struct SessionResponse {
     session_id: SessionId,
 }
 
 impl SessionResponse {
+    /// Yaratilgan session identifikatorini qaytaradi.
     pub fn session_id(&self) -> SessionId {
         self.session_id
     }
 }
 
-/// Session holati javobi.
+/// Session holati so'roviga javob.
+///
+/// Session tugagandan so'ng `code` field paydo bo'ladi —
+/// bu verifikatsiya natijasini bildiruvchi kod.
 #[derive(Debug, Deserialize)]
 pub struct SessionStatusResponse {
     code: Option<String>,
@@ -268,46 +300,60 @@ pub struct SessionStatusResponse {
 }
 
 impl SessionStatusResponse {
+    /// Verifikatsiya natija kodini qaytaradi.
+    ///
+    /// Session `Closed` holatida bo'lsagina qiymat bo'ladi.
     pub fn code(&self) -> Option<&str> {
         self.code.as_deref()
     }
 
+    /// Joriy session holatini qaytaradi.
     pub fn status(&self) -> &SessionStatus {
         &self.status
     }
 
+    /// Barcha verifikatsiya urinishlarini qaytaradi.
     pub fn attempts(&self) -> &[SessionAttempt] {
         &self.attempts
     }
 }
 
 /// Session holat turlari.
+///
+/// API `snake_case` va `UPPERCASE` formatlarini qaytarishi mumkin —
+/// ikkalasi ham qabul qilinadi.
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionStatus {
+    /// Verifikatsiya jarayoni davom etmoqda.
     #[serde(alias = "IN_PROGRESS")]
     InProgress,
+    /// Verifikatsiya yakunlandi (muvaffaqiyatli yoki muvaffaqiyatsiz).
     #[serde(alias = "CLOSED")]
     Closed,
+    /// Session muddati tugadi.
     #[serde(alias = "EXPIRED")]
     Expired,
 }
 
 impl SessionStatus {
+    /// Session hali jarayonda ekanligini tekshiradi.
     pub fn is_in_progress(&self) -> bool {
         matches!(self, Self::InProgress)
     }
 
+    /// Session yopilganligini tekshiradi.
     pub fn is_closed(&self) -> bool {
         matches!(self, Self::Closed)
     }
 
+    /// Session muddati o'tganligini tekshiradi.
     pub fn is_expired(&self) -> bool {
         matches!(self, Self::Expired)
     }
 }
 
-/// Session urinishi (attempt) haqida ma'lumot.
+/// Bitta verifikatsiya urinishi haqida ma'lumot.
 #[derive(Debug, Deserialize)]
 pub struct SessionAttempt {
     job_id: JobId,
@@ -317,20 +363,23 @@ pub struct SessionAttempt {
 }
 
 impl SessionAttempt {
+    /// Ushbu urinishga tegishli job identifikatorini qaytaradi.
     pub fn job_id(&self) -> JobId {
         self.job_id
     }
 
+    /// Urinish amalga oshirilgan vaqtni qaytaradi (UTC).
     pub fn timestamp(&self) -> &DateTime<Utc> {
         &self.timestamp
     }
 
+    /// Muvaffaqiyatsizlik sababini qaytaradi (agar mavjud bo'lsa).
     pub fn reason(&self) -> Option<&str> {
         self.reason.as_deref()
     }
 
+    /// Muvaffaqiyatsizlik sabab kodini qaytaradi (agar mavjud bo'lsa).
     pub fn reason_code(&self) -> Option<i32> {
         self.reason_code
     }
 }
-

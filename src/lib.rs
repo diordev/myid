@@ -87,7 +87,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = { version = "0.1.2", default-features = false }
+//! myid = { version = "0.1.3", default-features = false }
 //! ```
 //!
 //! ## Modullar
@@ -95,8 +95,11 @@
 //! | Modul | Tavsif |
 //! |-------|--------|
 //! | [`config`] | SDK konfiguratsiyasi — URL, timeout, proxy, user-agent |
-//! | [`error`] | Xatolar tipi (`MyIdError`) va `Result` aliasi |
-//! | [`client`] | MyID tizimiga backend orqali so'rovlar yuborish |
+//! | [`error`] | Xato tipi (`MyIdError`) va `Result` aliasi |
+//! | [`client`] | MyID API ga so'rovlar yuborish |
+//! | [`prelude`] | Tez-tez ishlatiladigan turlar yig'indisi |
+//! | [`types`] | Type-safe qiymat turlari (PINFL, passport, va boshqalar) |
+//! | [`dto`] | API so'rov va javob DTO strukturalari |
 //!
 //! ## Xavfsizlik eslatmalari
 //!

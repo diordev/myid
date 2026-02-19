@@ -1,4 +1,4 @@
-//BITTA macro, barcha UUID wrapper'lar uchun
+// UUID asosidagi newtype wrapper'lar uchun umumiy macro.
 
 /// UUID asosidagi newtype yaratish uchun macro.
 ///
@@ -81,8 +81,6 @@ macro_rules! define_uuid_type {
 }
 
 pub(crate) use define_uuid_type;
-
-// src/types/uuid_type.rs oxiriga qo'shing
 
 #[cfg(test)]
 macro_rules! uuid_type_tests {

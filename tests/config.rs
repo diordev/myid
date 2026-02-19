@@ -287,3 +287,32 @@ fn ftp_proxy_rejected() -> MyIdResult<()> {
     assert!(result.is_err());
     Ok(())
 }
+
+// ===== Validation: bo'sh credentials =====
+
+#[test]
+fn empty_client_id_returns_error() {
+    assert!(Config::new("https://example.uz", "", "secret").is_err());
+}
+
+#[test]
+fn whitespace_client_id_returns_error() {
+    assert!(Config::new("https://example.uz", "   ", "secret").is_err());
+}
+
+#[test]
+fn empty_client_secret_returns_error() {
+    assert!(Config::new("https://example.uz", "id", "").is_err());
+}
+
+#[test]
+fn whitespace_client_secret_returns_error() {
+    assert!(Config::new("https://example.uz", "id", "   ").is_err());
+}
+
+#[test]
+fn config_error_variant_on_empty_credentials() {
+    use myid::error::MyIdError;
+    let err = Config::new("https://example.uz", "", "secret").unwrap_err();
+    assert!(matches!(err, MyIdError::Validation { .. }));
+}
