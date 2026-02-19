@@ -1,8 +1,18 @@
-//! Qulay re-export'lar to'plami.
+//! SDK ning barcha tez-tez ishlatiladigan turlarini bitta import bilan yuklash.
 //!
-//! ```
+//! Har bir moduldan alohida import o'rniga shu modul yetarli:
+//!
+//! ```rust
 //! use myid::prelude::*;
 //! ```
+//!
+//! # Eksport qilinadi
+//!
+//! | Kategoriya | Turlar |
+//! |------------|--------|
+//! | Core | [`MyIdClient`], [`Config`], [`MyIdError`], [`MyIdResult`] |
+//! | Types | [`Pinfl`], [`BirthDate`], [`PassportData`], [`PhoneNumber`], [`Threshold`], [`Reuid`], [`SessionId`], [`JobId`] |
+//! | DTO | [`CreateSessionRequest`], [`SessionWithPinfl`], [`SessionWithPassport`], [`SessionWithReuid`], [`SessionResponse`], [`SessionStatusResponse`], [`AccessTokenResponse`] |
 
 // Core
 pub use crate::client::MyIdClient;

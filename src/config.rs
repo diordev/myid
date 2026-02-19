@@ -221,6 +221,10 @@ impl Config {
     /// - `base_url` noto'g'ri URL formatida bo'lsa
     /// - URL scheme `http` yoki `https` dan farqli bo'lsa
     ///
+    /// [`MyIdError::Validation`] qaytaradi agar:
+    /// - `client_id` bo'sh yoki faqat bo'shliqlardan iborat bo'lsa
+    /// - `client_secret` bo'sh yoki faqat bo'shliqlardan iborat bo'lsa
+    ///
     /// # Misollar
     ///
     /// ```rust
@@ -247,11 +251,20 @@ impl Config {
         client_secret: impl Into<String>,
     ) -> MyIdResult<Self> {
         let base_url = Self::parse_and_normalize_url(&base_url)?;
+        let client_id = client_id.into();
+        let client_secret = client_secret.into();
+
+        if client_id.trim().is_empty() {
+            return Err(MyIdError::validation("client_id bo'sh bo'lmasligi kerak"));
+        }
+        if client_secret.trim().is_empty() {
+            return Err(MyIdError::validation("client_secret bo'sh bo'lmasligi kerak"));
+        }
 
         Ok(Self {
             base_url,
-            client_id: client_id.into(),
-            client_secret: client_secret.into(),
+            client_id,
+            client_secret,
             connection_timeout_ms: Duration::from_millis(DEFAULT_CONNECT_TIMEOUT_MS),
             timeout_ms: Duration::from_millis(DEFAULT_TIMEOUT_MS),
             user_agent: Cow::Borrowed(DEFAULT_USER_AGENT),
