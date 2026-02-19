@@ -87,7 +87,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = { version = "0.1.3", default-features = false }
+//! myid = { version = "0.1.5", default-features = false }
 //! ```
 //!
 //! ## Modullar
