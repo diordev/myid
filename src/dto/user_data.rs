@@ -2,19 +2,22 @@ use serde::Deserialize;
 
 use crate::types::{JobId, PassportData, Reuid};
 
-/// MyID API dan foydalanuvchi ma'lumotlarini olish uchun asosiy javob strukturasi.
+/// MyID API foydalanuvchi ma'lumotlari javobi (`GET /api/v1/sdk/data?code=`).
 ///
-/// `GET /api/v1/user-data` so'roviga javob sifatida qaytadi.
-/// Ikkala flow (primary va secondary) uchun umumiy struktura.
+/// Ikkala flow uchun umumiy struktura:
 ///
-/// - **Primary flow**: `data.profile` — `Some(Profile)` bo'ladi, to'liq shaxsiy ma'lumotlar.
-/// - **Secondary flow**: `data.profile` — `None` bo'ladi, faqat `reuid` qaytadi.
+/// | Flow | `data.profile` | `reuid` |
+/// |------|----------------|---------|
+/// | Primary | `Some(Profile)` — to'liq shaxsiy ma'lumotlar | `Some(ReuId)` |
+/// | Secondary | `None` | `None` |
 #[derive(Debug, Deserialize)]
 pub struct UserDataResponse {
     /// Foydalanuvchining shaxsiy va pasport ma'lumotlari.
     pub data: UserData,
     /// Sessiya uchun qayta ishlatiladigan unikal identifikator (ReUID).
-    pub reuid: ReuId,
+    ///
+    /// Primary flow da `Some(ReuId)`, secondary flow da `None`.
+    pub reuid: Option<ReuId>,
 }
 
 /// Foydalanuvchining asosiy ma'lumotlari bloki.
@@ -184,11 +187,21 @@ pub struct TemporaryRegistration {
     pub district_id_cbu: String,
 }
 
-/// Sessiya uchun qayta ishlatiladigan unikal identifikator (ReUID).
+/// Secondary flow uchun qayta ishlatiladigan identifikator va uning muddati.
+///
+/// **Nomlash farqi:**
+/// - [`ReuId`] — bu struct (metadata: `expires_at` + `value`)
+/// - [`Reuid`](crate::types::Reuid) — ichidagi UUID qiymat turi
+///
+/// Primary flow muvaffaqiyatli tugagandan so'ng `UserDataResponse.reuid` da qaytadi.
+/// `value` ni keyingi [`CreateSessionRequest::WithReuid`](crate::dto::CreateSessionRequest)
+/// so'rovida ishlating.
 #[derive(Debug, Deserialize)]
 pub struct ReuId {
-    /// ReUID ning amal qilish muddati (Unix timestamp). Masalan: `1722412345`.
+    /// Amal qilish muddati (Unix timestamp, soniyalarda). Masalan: `1722412345`.
+    ///
+    /// Shartnomaga qarab oyning oxirgi kuni yoki yil oxirida tugaydi.
     pub expires_at: i32,
-    /// ReUID qiymati (UUID formatida). Masalan: `"9b7e597e-893e-4e11-92cf-f4e7d4f923b1"`.
+    /// Qayta ishlatiladigan UUID qiymati. Masalan: `"9b7e597e-893e-4e11-92cf-f4e7d4f923b1"`.
     pub value: Reuid,
 }

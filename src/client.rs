@@ -17,7 +17,7 @@
 //!           │
 //!           ├── create_session(&request) → SessionResponse
 //!           ├── handle_callback(code)   → UserDataResponse
-//!           └── recover_session(id)     → String
+//!           └── recover_session(id)     → SessionStatusResponse
 //! ```
 //!
 //! # Misollar
@@ -53,8 +53,8 @@ use url::Url;
 
 use crate::config::Config;
 use crate::dto::{
-    AccessTokenRequest, AccessTokenResponse, CreateSessionRequest, SessionResponse,
-    UserDataResponse,
+    AccessTokenRequest, AccessTokenResponse, ApiErrorBody, CreateSessionRequest, SessionResponse,
+    SessionStatusResponse, UserDataResponse,
 };
 use crate::error::{MyIdError, MyIdResult};
 use crate::types::SessionId;
@@ -196,6 +196,12 @@ impl MyIdClient {
 
     /// Mavjud sessionni tiklaydi (`GET /api/v1/sdk/sessions/{session_id}`).
     ///
+    /// Agar mobil ilovadan `code` backend'ga yetib kelmasa,
+    /// session tugagandan **10 daqiqa** ichida shu metod orqali holat so'raladi.
+    ///
+    /// `status` qiymatlari: `in_progress` | `closed` | `expired`.
+    /// `closed` holatida `code` field mavjud bo'ladi.
+    ///
     /// Token avtomatik cache'dan olinadi yoki yangilanadi.
     ///
     /// # Misollar
@@ -205,17 +211,20 @@ impl MyIdClient {
     /// # async fn example() -> MyIdResult<()> {
     /// # let config = Config::new("https://myid.uz", "id", "secret")?;
     /// # let client = MyIdClient::new(config)?;
-    /// let session_id = SessionId::parse("some-session-id")?;
+    /// let session_id = SessionId::parse("550e8400-e29b-41d4-a716-446655440000")?;
     ///
     /// let result = client.recover_session(session_id).await?;
-    /// println!("Recovered: {}", result);
+    /// println!("Status: {:?}", result.status());
+    /// if let Some(code) = result.code() {
+    ///     println!("Code: {}", code);
+    /// }
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn recover_session(&self, session_id: SessionId) -> MyIdResult<String> {
+    pub async fn recover_session(&self, session_id: SessionId) -> MyIdResult<SessionStatusResponse> {
         let token = self.get_token().await?;
         let url = self.endpoint(&format!("{}/{}", SESSION_RECOVERY_PATH, session_id))?;
-        
+
         let response = self
             .http
             .get(url.as_str())
@@ -350,6 +359,9 @@ impl MyIdClient {
     }
 
     /// API javobini tekshiradi — success bo'lsa deserialize, aks holda xato.
+    ///
+    /// Xato holatlarda `{"err": "...", "detail": "..."}` strukturasi parse qilinadi.
+    /// Parse qilinmasa raw body xato xabari sifatida ishlatiladi.
     async fn handle_response<T: serde::de::DeserializeOwned>(
         response: reqwest::Response,
     ) -> MyIdResult<T> {
@@ -363,7 +375,11 @@ impl MyIdClient {
             .await
             .unwrap_or_else(|_| "response body o'qib bo'lmadi".to_string());
 
-        Err(MyIdError::api(status, body))
+        let message = serde_json::from_str::<ApiErrorBody>(&body)
+            .map(|e| e.message())
+            .unwrap_or(body);
+
+        Err(MyIdError::api(status, message))
     }
 
     /// Reqwest HTTP client yaratadi.

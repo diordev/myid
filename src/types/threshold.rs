@@ -76,7 +76,7 @@ impl Threshold {
         Ok(Self(value))
     }
 
-    /// Ichki `f64` qiymatni qaytaradi.    
+    /// Ichki `f64` qiymatni qaytaradi.
     #[inline]
     pub fn as_f64(self) -> f64 {
         self.0
