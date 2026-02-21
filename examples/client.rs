@@ -94,7 +94,23 @@ async fn recover_session_example(client: &MyIdClient) {
     };
 
     match client.recover_session(session_id).await {
-        Ok(resp) => println!("Tiklangan session: {resp}\n"),
+        Ok(resp) => {
+            println!("Status: {:?}", resp.status());
+            if let Some(code) = resp.code() {
+                println!("Code: {code}");
+            }
+            for attempt in resp.attempts() {
+                println!(
+                    "  Urinish: job_id={}, vaqt={}",
+                    attempt.job_id(),
+                    attempt.timestamp()
+                );
+                if let Some(reason) = attempt.reason() {
+                    println!("Sabab: {reason}");
+                }
+            }
+            println!();
+        }
         Err(MyIdError::Api { status, message }) => {
             eprintln!("API xato {status}: {message}\n")
         }
@@ -124,10 +140,12 @@ async fn handle_callback_example(client: &MyIdClient) {
                         common.first_name, common.last_name, common.pinfl
                     );
                 }
-                // Secondary flow: profil yo'q, faqat reuid qaytadi
+                // Secondary flow: profil yo'q, reuid ham null
                 None => {
                     println!("Secondary flow — profil yo'q.");
-                    println!("ReUID: {}", resp.reuid.value);
+                    if let Some(reuid) = &resp.reuid {
+                        println!("ReUID: {}", reuid.value);
+                    }
                 }
             }
             println!();

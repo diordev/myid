@@ -1,5 +1,3 @@
-// src/types/job_id.rs
-
 use crate::types::uuid_type::define_uuid_type;
 
 define_uuid_type! {

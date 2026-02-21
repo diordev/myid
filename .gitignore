@@ -27,5 +27,5 @@
 *.log
 .env
 Cargo.lock
-
+/text.txt
 /examples/main.rs

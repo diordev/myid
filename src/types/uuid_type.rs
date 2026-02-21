@@ -35,7 +35,11 @@ macro_rules! define_uuid_type {
                 Self(uuid::Uuid::new_v4())
             }
 
-            /// Canonical string ko'rinishini qaytaradi (lowercase, hyphenated).
+            /// Canonical `String` qaytaradi (lowercase, hyphenated UUID formati).
+            ///
+            /// Har chaqiriqda yangi `String` allokatsiya qiladi.
+            /// Faqat chiqarish yoki saqlash kerak bo'lganda ishlating;
+            /// taqqoslash uchun to'g'ridan-to'g'ri `==` operatorini ishlating.
             #[inline]
             pub fn as_str(&self) -> String {
                 self.0.as_hyphenated().to_string()

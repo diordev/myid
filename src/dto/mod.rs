@@ -17,13 +17,15 @@
 //! | `WithReuid` | [`SessionWithReuid`] | `reuid` |
 
 mod auth;
+mod error_body;
 mod session;
 mod user_data;
 
 // Consumer ko'radigan structlar
 pub use auth::{AccessTokenRequest, AccessTokenResponse};
+pub(crate) use error_body::ApiErrorBody;
 pub use session::{
-    CreateSessionRequest, SessionResponse, SessionStatus, SessionStatusResponse,
+    CreateSessionRequest, SessionAttempt, SessionResponse, SessionStatus, SessionStatusResponse,
     SessionWithPassport, SessionWithPinfl, SessionWithReuid,
 };
-pub use user_data::UserDataResponse;
+pub use user_data::{ReuId, UserDataResponse};

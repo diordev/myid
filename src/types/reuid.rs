@@ -1,9 +1,11 @@
 use crate::types::uuid_type::define_uuid_type;
 
 define_uuid_type! {
-    /// MyID request unique identifikatori.
+    /// Secondary flow uchun qayta ishlatiladigan foydalanuvchi identifikatori (UUID v4).
     ///
-    /// API so'rovlarini kuzatish va idempotentlik uchun ishlatiladi.
+    /// Primary flow muvaffaqiyatli tugagandan so'ng server tomonidan beriladi.
+    /// Keyingi secondary flow da pasport ma'lumotlari kerak bo'lmaydi —
+    /// shu `Reuid` orqali foydalanuvchi qayta tekshiriladi.
     ///
     /// ```
     /// use myid::types::Reuid;
