@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
 //! # MyID SDK — Rust Client
 //!
 //! O'zbekiston Respublikasi MyID identifikatsiya tizimi uchun

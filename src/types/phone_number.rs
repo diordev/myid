@@ -66,11 +66,13 @@ impl PhoneNumber {
     }
 
     /// Raqamni `&str` sifatida qaytaradi (`+` siz, faqat 12 raqam).
+    #[inline]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Raqamni `+` bilan qaytaradi (masalan: `+998901234567`).
+    #[inline]
     pub fn as_international(&self) -> String {
         format!("+{}", self.0)
     }

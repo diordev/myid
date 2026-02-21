@@ -258,7 +258,9 @@ impl Config {
             return Err(MyIdError::validation("client_id bo'sh bo'lmasligi kerak"));
         }
         if client_secret.trim().is_empty() {
-            return Err(MyIdError::validation("client_secret bo'sh bo'lmasligi kerak"));
+            return Err(MyIdError::validation(
+                "client_secret bo'sh bo'lmasligi kerak",
+            ));
         }
 
         Ok(Self {
@@ -379,6 +381,7 @@ impl Config {
     /// # }
     /// ```
     #[must_use]
+    #[inline]
     pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
         self.connection_timeout_ms = timeout;
         self
@@ -407,6 +410,7 @@ impl Config {
     /// # }
     /// ```
     #[must_use]
+    #[inline]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout_ms = timeout;
         self
@@ -435,6 +439,7 @@ impl Config {
     /// # }
     /// ```
     #[must_use]
+    #[inline]
     pub fn with_user_agent(mut self, agent: impl Into<String>) -> Self {
         self.user_agent = Cow::Owned(agent.into());
         self
@@ -494,6 +499,7 @@ impl Config {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub fn base_url(&self) -> &str {
         self.base_url.as_str()
     }
@@ -501,6 +507,7 @@ impl Config {
     /// OAuth `client_id` qiymatini qaytaradi.
     ///
     /// Bu public identifikator — logga chiqarish xavfsiz.
+    #[inline]
     pub fn client_id(&self) -> &str {
         &self.client_id
     }
@@ -510,6 +517,7 @@ impl Config {
     /// ⚠️ **Ogohlantirish:** bu qiymat maxfiy. Logga, stdout'ga yoki
     /// tashqi tizimlarga **chiqarmang**. [`Debug`] output'da avtomatik
     /// `<redacted>` sifatida ko'rsatiladi.
+    #[inline]
     pub fn client_secret(&self) -> &str {
         &self.client_secret
     }
@@ -517,6 +525,7 @@ impl Config {
     /// TCP/TLS ulanish timeout qiymatini qaytaradi.
     ///
     /// Default: 2 soniya. [`Config::with_connect_timeout()`] orqali o'zgartiriladi.
+    #[inline]
     pub fn connection_timeout(&self) -> Duration {
         self.connection_timeout_ms
     }
@@ -524,6 +533,7 @@ impl Config {
     /// HTTP so'rov timeout qiymatini qaytaradi.
     ///
     /// Default: 15 soniya. [`Config::with_timeout()`] orqali o'zgartiriladi.
+    #[inline]
     pub fn timeout(&self) -> Duration {
         self.timeout_ms
     }
@@ -531,6 +541,7 @@ impl Config {
     /// HTTP `User-Agent` header qiymatini qaytaradi.
     ///
     /// Default: `myid-client-rust/0.1`.
+    #[inline]
     pub fn user_agent(&self) -> &str {
         self.user_agent.as_ref()
     }
@@ -555,7 +566,8 @@ impl Config {
     /// assert!(config.proxy_url().is_some());
     /// # Ok(())
     /// # }
-    /// ```
+    /// ```    
+    #[inline]
     pub fn proxy_url(&self) -> Option<&str> {
         self.proxy_url.as_ref().map(Url::as_str)
     }
@@ -568,7 +580,8 @@ impl Config {
     ///
     /// ```rust,ignore
     /// let endpoint = config.base_url_parsed().join("api/v1/verify")?;
-    /// ```
+    /// ```    
+    #[inline]
     pub(crate) fn base_url_parsed(&self) -> &Url {
         &self.base_url
     }
@@ -577,6 +590,7 @@ impl Config {
     ///
     /// Crate ichida HTTP client proxy sozlamalari uchun ishlatiladi.
     #[allow(dead_code)]
+    #[inline]
     pub(crate) fn proxy_url_parsed(&self) -> Option<&Url> {
         self.proxy_url.as_ref()
     }

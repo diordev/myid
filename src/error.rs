@@ -54,7 +54,9 @@
 /// let err = MyIdError::api(401, "unauthorized");
 /// println!("{err}"); // "api error 401: unauthorized"
 /// ```
+/// 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum MyIdError {
     /// Konfiguratsiya xatosi.
     ///
@@ -164,7 +166,8 @@ impl MyIdError {
     ///
     /// let err = MyIdError::config("noto'g'ri URL");
     /// let err = MyIdError::config(format!("yo'q: {}", "MYID_BASE_URL"));
-    /// ```
+    /// ```    
+    #[inline]
     pub fn config(message: impl Into<String>) -> Self {
         Self::Config {
             message: message.into(),
@@ -178,6 +181,7 @@ impl MyIdError {
     ///
     /// let err = MyIdError::validation("passport_series majburiy");
     /// ```
+    #[inline]
     pub fn validation(message: impl Into<String>) -> Self {
         Self::Validation {
             message: message.into(),
@@ -202,6 +206,7 @@ impl MyIdError {
     /// let err = MyIdError::api(401, "unauthorized");
     /// let err = MyIdError::api(500, "internal server error");
     /// ```
+    #[inline]
     pub fn api(status: u16, message: impl Into<String>) -> Self {
         Self::Api {
             status,
@@ -212,6 +217,7 @@ impl MyIdError {
     /// [`MyIdError::Internal`] variantini yaratadi.
     ///
     /// Faqat SDK ichida ishlatiladi — consumer uchun mo'ljallanmagan.
+    #[inline]
     pub(crate) fn internal(message: impl Into<String>) -> Self {
         Self::Internal {
             message: message.into(),
@@ -226,6 +232,7 @@ impl MyIdError {
     /// let err = MyIdError::api(401, "unauthorized");
     /// assert!(err.is_api());
     /// ```
+    #[inline]
     pub fn is_api(&self) -> bool {
         matches!(self, Self::Api { .. })
     }
@@ -238,6 +245,7 @@ impl MyIdError {
     /// let err = MyIdError::api(429, "rate limited");
     /// assert_eq!(err.api_status(), Some(429));
     /// ```
+    #[inline]
     pub fn api_status(&self) -> Option<u16> {
         match self {
             Self::Api { status, .. } => Some(*status),

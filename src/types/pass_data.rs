@@ -83,16 +83,19 @@ impl PassportData {
     }
 
     /// To'liq pasport ma'lumotini qaytaradi (masalan: `AB1234567`).
+    #[inline]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Faqat seriya qismini qaytaradi (masalan: `AB`).
+    #[inline]
     pub fn series(&self) -> &str {
         &self.0[..Self::SERIES_LEN]
     }
 
     /// Faqat raqam qismini qaytaradi (masalan: `1234567`).
+    #[inline]
     pub fn number(&self) -> &str {
         &self.0[Self::SERIES_LEN..]
     }
