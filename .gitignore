@@ -28,4 +28,4 @@
 .env
 Cargo.lock
 
-/executables/main.rs
+/examples/main.rs
