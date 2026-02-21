@@ -27,3 +27,5 @@
 *.log
 .env
 Cargo.lock
+
+/executables/main.rs

@@ -36,11 +36,13 @@ macro_rules! define_uuid_type {
             }
 
             /// Canonical string ko'rinishini qaytaradi (lowercase, hyphenated).
+            #[inline]
             pub fn as_str(&self) -> String {
                 self.0.as_hyphenated().to_string()
             }
 
             /// Ichki [`Uuid`](uuid::Uuid) qiymatni qaytaradi.
+            #[inline]
             pub fn as_uuid(&self) -> &uuid::Uuid {
                 &self.0
             }

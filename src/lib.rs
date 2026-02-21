@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+#![deny(unsafe_code)]
 //! # MyID SDK — Rust Client
 //!
 //! O'zbekiston Respublikasi MyID identifikatsiya tizimi uchun
@@ -11,6 +13,11 @@
 //! - **Xavfsizlik** — `client_secret` `Debug` outputda yashiriladi
 //! - **Thread-safe** — `Send + Sync` compile-time kafolati
 //!
+//! ```toml
+//! [dependencies]
+//! myid = "0.1.6"
+//! tokio = { version = "1", features = ["full"] }
+//! ```
 //! ## Tez boshlash
 //!
 //! ```rust
@@ -87,7 +94,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = { version = "0.1.5", default-features = false }
+//! myid = { version = "0.1.6", default-features = false }
 //! ```
 //!
 //! ## Modullar
