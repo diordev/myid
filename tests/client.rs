@@ -69,6 +69,50 @@ async fn create_session_without_server_returns_error() -> MyIdResult<()> {
     Ok(())
 }
 
+// ===== recover_session — server yo'q =====
+
+#[tokio::test]
+async fn recover_session_without_server_returns_error() -> MyIdResult<()> {
+    let config = fast_config("http://127.0.0.1:1")?;
+    let client = MyIdClient::new(config)?;
+    let session_id = myid::types::SessionId::parse("550e8400-e29b-41d4-a716-446655440000")
+        .expect("to'g'ri UUID");
+    assert!(client.recover_session(session_id).await.is_err());
+    Ok(())
+}
+
+// ===== handle_callback =====
+
+#[tokio::test]
+async fn handle_callback_empty_code_returns_validation_error() -> MyIdResult<()> {
+    // Server bilan bog'lanmasdan ham validatsiya xatosi qaytishi kerak
+    let config = fast_config("http://127.0.0.1:1")?;
+    let client = MyIdClient::new(config)?;
+
+    let err = client.handle_callback("".to_string()).await.unwrap_err();
+    assert!(matches!(err, myid::error::MyIdError::Validation { .. }));
+    Ok(())
+}
+
+#[tokio::test]
+async fn handle_callback_whitespace_code_returns_validation_error() -> MyIdResult<()> {
+    let config = fast_config("http://127.0.0.1:1")?;
+    let client = MyIdClient::new(config)?;
+
+    let err = client.handle_callback("   ".to_string()).await.unwrap_err();
+    assert!(matches!(err, myid::error::MyIdError::Validation { .. }));
+    Ok(())
+}
+
+#[tokio::test]
+async fn handle_callback_without_server_returns_error() -> MyIdResult<()> {
+    let config = fast_config("http://127.0.0.1:1")?;
+    let client = MyIdClient::new(config)?;
+    let code = "550e8400-e29b-41d4-a716-446655440000".to_string();
+    assert!(client.handle_callback(code).await.is_err());
+    Ok(())
+}
+
 // ===== Clone — parallel get_token =====
 
 #[tokio::test]
