@@ -53,13 +53,14 @@ use url::Url;
 use crate::config::Config;
 use crate::dto::{AccessTokenRequest, AccessTokenResponse, CreateSessionRequest, SessionResponse};
 use crate::error::{MyIdError, MyIdResult};
+use crate::types::SessionId;
 
 const ACCESS_TOKEN_PATH: &str = "api/v1/auth/clients/access-token";
 const CREATE_SESSION_PATH: &str = "api/v2/sdk/sessions";
 #[allow(dead_code)]
 const USER_DATA_PATH: &str = "api/v1/sdk/data";
 #[allow(dead_code)]
-const SESSION_STATUS_PATH: &str = "api/v1/sdk/sessions";
+const SESSION_RECOVERY_PATH: &str = "api/v1/sdk/sessions";
 
 /// MyID API client.
 ///
@@ -189,6 +190,39 @@ impl MyIdClient {
 
         let fresh = self.authenticate().await?;
         self.write_cached_token(fresh).await
+    }
+
+    /// Mavjud sessionni tiklaydi (`GET /api/v1/sdk/sessions/{session_id}`).
+    ///
+    /// Token avtomatik cache'dan olinadi yoki yangilanadi.
+    ///
+    /// # Misollar
+    ///
+    /// ```rust,no_run
+    /// # use myid::prelude::*;
+    /// # async fn example() -> MyIdResult<()> {
+    /// # let config = Config::new("https://myid.uz", "id", "secret")?;
+    /// # let client = MyIdClient::new(config)?;
+    /// let session_id = SessionId::parse("some-session-id")?;
+    ///
+    /// let result = client.recover_session(session_id).await?;
+    /// println!("Recovered: {}", result);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn recover_session(&self, session_id: SessionId) -> MyIdResult<String> {
+        let token = self.get_token().await?;
+        let url = self.endpoint(&format!("{}/{}", SESSION_RECOVERY_PATH, session_id))?;
+        
+        println!("URL: {}", url);
+        let response = self
+            .http
+            .get(url.as_str())
+            .bearer_auth(token)
+            .send()
+            .await?;
+
+        Self::handle_response(response).await
     }
 
     // --- Private: API methods ---
