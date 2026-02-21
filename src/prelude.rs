@@ -12,7 +12,7 @@
 //! |------------|--------|
 //! | Core | [`MyIdClient`], [`Config`], [`MyIdError`], [`MyIdResult`] |
 //! | Types | [`Pinfl`], [`BirthDate`], [`PassportData`], [`PhoneNumber`], [`Threshold`], [`Reuid`], [`SessionId`], [`JobId`] |
-//! | DTO | [`CreateSessionRequest`], [`SessionWithPinfl`], [`SessionWithPassport`], [`SessionWithReuid`], [`SessionResponse`], [`SessionStatusResponse`], [`AccessTokenResponse`] |
+//! | DTO | [`CreateSessionRequest`], [`SessionWithPinfl`], [`SessionWithPassport`], [`SessionWithReuid`], [`SessionResponse`], [`SessionStatusResponse`], [`AccessTokenResponse`], [`UserDataResponse`] |
 
 // Core
 pub use crate::client::MyIdClient;
@@ -27,5 +27,5 @@ pub use crate::types::{
 // DTO
 pub use crate::dto::{
     AccessTokenResponse, CreateSessionRequest, SessionResponse, SessionStatusResponse,
-    SessionWithPassport, SessionWithPinfl, SessionWithReuid,
+    SessionWithPassport, SessionWithPinfl, SessionWithReuid, UserDataResponse,
 };

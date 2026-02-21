@@ -16,7 +16,8 @@
 //!           │     └── authenticate() → yangi token → write_cached_token()
 //!           │
 //!           ├── create_session(&request) → SessionResponse
-//!           └── kelajakda: get_user_data(), get_session_status()
+//!           ├── handle_callback(code)   → UserDataResponse
+//!           └── recover_session(id)     → String
 //! ```
 //!
 //! # Misollar
@@ -51,15 +52,16 @@ use reqwest::{Client, Proxy};
 use url::Url;
 
 use crate::config::Config;
-use crate::dto::{AccessTokenRequest, AccessTokenResponse, CreateSessionRequest, SessionResponse};
+use crate::dto::{
+    AccessTokenRequest, AccessTokenResponse, CreateSessionRequest, SessionResponse,
+    UserDataResponse,
+};
 use crate::error::{MyIdError, MyIdResult};
 use crate::types::SessionId;
 
 const ACCESS_TOKEN_PATH: &str = "api/v1/auth/clients/access-token";
 const CREATE_SESSION_PATH: &str = "api/v2/sdk/sessions";
-#[allow(dead_code)]
 const USER_DATA_PATH: &str = "api/v1/sdk/data";
-#[allow(dead_code)]
 const SESSION_RECOVERY_PATH: &str = "api/v1/sdk/sessions";
 
 /// MyID API client.
@@ -214,7 +216,61 @@ impl MyIdClient {
         let token = self.get_token().await?;
         let url = self.endpoint(&format!("{}/{}", SESSION_RECOVERY_PATH, session_id))?;
         
-        println!("URL: {}", url);
+        let response = self
+            .http
+            .get(url.as_str())
+            .bearer_auth(token)
+            .send()
+            .await?;
+
+        Self::handle_response(response).await
+    }
+
+    /// MyID callback kodini qayta ishlaydi va foydalanuvchi ma'lumotlarini qaytaradi.
+    ///
+    /// Mobil ilova MyID dan olgan `code` ni backend ga yuboradi, backend esa
+    /// shu metod orqali MyID API dan foydalanuvchining to'liq profilini oladi.
+    ///
+    /// # Parametrlar
+    ///
+    /// - `code` — MyID tomonidan berilgan bir martalik UUID (TTL: 5 daqiqa).
+    ///
+    /// # Xatolar
+    ///
+    /// - [`MyIdError::Validation`] — `code` bo'sh string bo'lsa.
+    /// - [`MyIdError::Api`] — `code` muddati o'tgan yoki allaqachon ishlatilgan bo'lsa
+    ///   (MyID server `401`/`400` qaytaradi).
+    /// - [`MyIdError::Http`] — tarmoq xatosi.
+    ///
+    /// # Misol
+    ///
+    /// ```rust,no_run
+    /// # use myid::prelude::*;
+    /// # async fn example() -> MyIdResult<()> {
+    /// # let config = Config::new("https://myid.uz", "id", "secret")?;
+    /// # let client = MyIdClient::new(config)?;
+    /// let code = "550e8400-e29b-41d4-a716-446655440000".to_string();
+    ///
+    /// match client.handle_callback(code).await {
+    ///     Ok(user_data) => {
+    ///         println!("Foydalanuvchi: {:?}", user_data);
+    ///     }
+    ///     Err(e) => {
+    ///         eprintln!("Xato: {}", e);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn handle_callback(&self, code: String) -> MyIdResult<UserDataResponse> {
+        if code.trim().is_empty() {
+            return Err(MyIdError::validation("code bo'sh bo'lishi mumkin emas"));
+        }
+
+        let token = self.get_token().await?;
+        let mut url = self.endpoint(USER_DATA_PATH)?;
+        url.query_pairs_mut().append_pair("code", &code);
+
         let response = self
             .http
             .get(url.as_str())

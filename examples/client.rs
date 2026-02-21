@@ -27,6 +27,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     session_with_pinfl(&client).await;
     session_with_reuid(&client).await;
     session_empty(&client).await;
+    recover_session_example(&client).await;
+    handle_callback_example(&client).await;
 
     Ok(())
 }
@@ -77,6 +79,65 @@ async fn session_with_reuid(client: &MyIdClient) {
 async fn session_empty(client: &MyIdClient) {
     println!("=== Bo'sh session ===");
     print_result(client.create_session(&CreateSessionRequest::Empty {}).await);
+}
+
+/// Mavjud sessionni session_id orqali tiklash
+async fn recover_session_example(client: &MyIdClient) {
+    println!("=== Session tiklash ===");
+
+    let session_id = match SessionId::parse("550e8400-e29b-41d4-a716-446655440000") {
+        Ok(id) => id,
+        Err(e) => {
+            eprintln!("Noto'g'ri session_id: {e}\n");
+            return;
+        }
+    };
+
+    match client.recover_session(session_id).await {
+        Ok(resp) => println!("Tiklangan session: {resp}\n"),
+        Err(MyIdError::Api { status, message }) => {
+            eprintln!("API xato {status}: {message}\n")
+        }
+        Err(MyIdError::Http(e)) => eprintln!("Tarmoq xatosi: {e}\n"),
+        Err(e) => eprintln!("Xato: {e}\n"),
+    }
+}
+
+/// MyID callback code orqali foydalanuvchi ma'lumotlarini olish.
+///
+/// Primary flow da `profile` to'liq keladi.
+/// Secondary flow da `profile` `None` — faqat `reuid` qaytadi.
+async fn handle_callback_example(client: &MyIdClient) {
+    println!("=== Callback qayta ishlash (primary) ===");
+
+    // code — mobil ilova MyID dan olib backendga yuborgan bir martalik UUID (TTL: 5 daqiqa)
+    let code = "9b7e597e-893e-4e11-92cf-f4e7d4f923b1".to_string();
+
+    match client.handle_callback(code).await {
+        Ok(resp) => {
+            match &resp.data.profile {
+                // Primary flow: to'liq profil mavjud
+                Some(profile) => {
+                    let common = &profile.common_data;
+                    println!(
+                        "Foydalanuvchi: {} {} (PINFL: {})",
+                        common.first_name, common.last_name, common.pinfl
+                    );
+                }
+                // Secondary flow: profil yo'q, faqat reuid qaytadi
+                None => {
+                    println!("Secondary flow — profil yo'q.");
+                    println!("ReUID: {}", resp.reuid.value);
+                }
+            }
+            println!();
+        }
+        Err(MyIdError::Api { status, message }) => {
+            eprintln!("API xato {status}: {message}\n")
+        }
+        Err(MyIdError::Http(e)) => eprintln!("Tarmoq xatosi: {e}\n"),
+        Err(e) => eprintln!("Xato: {e}\n"),
+    }
 }
 
 fn print_result(result: MyIdResult<SessionResponse>) {

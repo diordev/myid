@@ -4,6 +4,7 @@
 //! |-------|--------|
 //! | [`auth`] | OAuth 2.0 token so'rov/javob strukturalari |
 //! | [`session`] | Session yaratish so'rov/javob strukturalari |
+//! | [`user_data`] | Foydalanuvchi profil javob strukturalari |
 //!
 //! # Session yaratish
 //!
@@ -17,6 +18,7 @@
 
 mod auth;
 mod session;
+mod user_data;
 
 // Consumer ko'radigan structlar
 pub use auth::{AccessTokenRequest, AccessTokenResponse};
@@ -24,3 +26,4 @@ pub use session::{
     CreateSessionRequest, SessionResponse, SessionStatus, SessionStatusResponse,
     SessionWithPassport, SessionWithPinfl, SessionWithReuid,
 };
+pub use user_data::UserDataResponse;
