@@ -48,7 +48,7 @@ use std::time::{Duration, Instant};
 
 use tokio::sync::Mutex;
 
-use reqwest::{Client, Proxy};
+use reqwest::{Client, Proxy, StatusCode};
 use url::Url;
 
 use crate::config::Config;
@@ -63,6 +63,9 @@ const ACCESS_TOKEN_PATH: &str = "api/v1/auth/clients/access-token";
 const CREATE_SESSION_PATH: &str = "api/v2/sdk/sessions";
 const USER_DATA_PATH: &str = "api/v1/sdk/data";
 const SESSION_RECOVERY_PATH: &str = "api/v1/sdk/sessions";
+const AUTH_MAX_ATTEMPTS: u8 = 4; // 1 asosiy urinish + 3 retry
+const AUTH_RETRY_BASE_MS: u64 = 100;
+const AUTH_RETRY_MAX_MS: u64 = 2_000;
 
 /// MyID API client.
 ///
@@ -92,6 +95,7 @@ pub struct MyIdClient {
     config: Config,
     http: Client,
     token: Arc<Mutex<Option<TokenState>>>,
+    refresh_lock: Arc<Mutex<()>>,
     token_refresh_margin: Duration,
 }
 
@@ -132,6 +136,7 @@ impl MyIdClient {
             config,
             http,
             token: Arc::new(Mutex::new(None)),
+            refresh_lock: Arc::new(Mutex::new(())),
             token_refresh_margin: Duration::from_secs(60),
         })
     }
@@ -170,10 +175,25 @@ impl MyIdClient {
         let response = self
             .http
             .post(url.as_str())
-            .bearer_auth(token)
+            .bearer_auth(&token)
             .json(request)
             .send()
             .await?;
+
+        if response.status() == StatusCode::UNAUTHORIZED {
+            self.invalidate_cached_token().await;
+
+            let retry_token = self.get_token().await?;
+            let retry_response = self
+                .http
+                .post(url.as_str())
+                .bearer_auth(retry_token)
+                .json(request)
+                .send()
+                .await?;
+
+            return Self::handle_response(retry_response).await;
+        }
 
         Self::handle_response(response).await
     }
@@ -186,6 +206,14 @@ impl MyIdClient {
     /// 2. Cache bo'sh yoki expired → API ga so'rov (`authenticate`)
     /// 3. Yangi tokenni cache'ga yozish
     pub async fn get_token(&self) -> MyIdResult<String> {
+        if let Some(token) = self.read_cached_token().await {
+            return Ok(token);
+        }
+
+        // Single-flight: bir vaqtning o'zida faqat bitta refresh ishlaydi.
+        let _refresh_guard = self.refresh_lock.lock().await;
+
+        // Lock kutish vaqtida boshqa task tokenni yangilagan bo'lishi mumkin.
         if let Some(token) = self.read_cached_token().await {
             return Ok(token);
         }
@@ -231,9 +259,23 @@ impl MyIdClient {
         let response = self
             .http
             .get(url.as_str())
-            .bearer_auth(token)
+            .bearer_auth(&token)
             .send()
             .await?;
+
+        if response.status() == StatusCode::UNAUTHORIZED {
+            self.invalidate_cached_token().await;
+
+            let retry_token = self.get_token().await?;
+            let retry_response = self
+                .http
+                .get(url.as_str())
+                .bearer_auth(retry_token)
+                .send()
+                .await?;
+
+            return Self::handle_response(retry_response).await;
+        }
 
         Self::handle_response(response).await
     }
@@ -282,13 +324,28 @@ impl MyIdClient {
         let token = self.get_token().await?;
         let mut url = self.endpoint(USER_DATA_PATH)?;
         url.query_pairs_mut().append_pair("code", &code);
+        let callback_url = url.to_string();
 
         let response = self
             .http
-            .get(url.as_str())
-            .bearer_auth(token)
+            .get(callback_url.as_str())
+            .bearer_auth(&token)
             .send()
             .await?;
+
+        if response.status() == StatusCode::UNAUTHORIZED {
+            self.invalidate_cached_token().await;
+
+            let retry_token = self.get_token().await?;
+            let retry_response = self
+                .http
+                .get(callback_url.as_str())
+                .bearer_auth(retry_token)
+                .send()
+                .await?;
+
+            return Self::handle_response(retry_response).await;
+        }
 
         Self::handle_response(response).await
     }
@@ -296,17 +353,33 @@ impl MyIdClient {
     // --- Private: API methods ---
 
     /// MyID API dan access token oladi. Cache ishlatmaydi.
+    ///
+    /// Vaqtinchalik xatolarda (`429`, `5xx`, timeout/connect/request xatolari)
+    /// exponential backoff bilan bir necha marta qayta urinadi.
     async fn authenticate(&self) -> MyIdResult<AccessTokenResponse> {
         let url = self.endpoint(ACCESS_TOKEN_PATH)?;
+        let mut attempt: u8 = 1;
 
-        let body = AccessTokenRequest {
-            client_id: self.config.client_id(),
-            client_secret: self.config.client_secret(),
-        };
+        loop {
+            let body = AccessTokenRequest {
+                client_id: self.config.client_id(),
+                client_secret: self.config.client_secret(),
+            };
 
-        let response = self.http.post(url.as_str()).json(&body).send().await?;
+            let result = match self.http.post(url.as_str()).json(&body).send().await {
+                Ok(response) => Self::handle_response(response).await,
+                Err(e) => Err(MyIdError::http(e)),
+            };
 
-        Self::handle_response(response).await
+            match result {
+                Ok(token) => return Ok(token),
+                Err(err) if attempt < AUTH_MAX_ATTEMPTS && Self::is_retryable_auth_error(&err) => {
+                    tokio::time::sleep(Self::auth_retry_backoff(attempt)).await;
+                    attempt += 1;
+                }
+                Err(err) => return Err(err),
+            }
+        }
     }
 
     // --- Private: Token cache ---
@@ -321,6 +394,12 @@ impl MyIdClient {
                 None
             }
         })
+    }
+
+    /// Cache'dagi tokenni majburiy tozalaydi.
+    async fn invalidate_cached_token(&self) {
+        let mut guard = self.token.lock().await;
+        *guard = None;
     }
 
     /// Yangi tokenni cache'ga yozadi va token stringni qaytaradi.
@@ -398,5 +477,88 @@ impl MyIdClient {
         }
 
         Ok(builder.build()?)
+    }
+    
+    fn is_retryable_auth_error(err: &MyIdError) -> bool {
+        match err {
+            MyIdError::Api { status, .. } => *status == 429 || (500..=599).contains(status),
+            MyIdError::Http(source) => {
+                source.is_timeout() || source.is_connect() || source.is_request()
+            }
+            _ => false,
+        }
+    }
+
+    fn auth_retry_backoff(attempt: u8) -> Duration {
+        let shift = u32::from(attempt.saturating_sub(1));
+        let factor = 1_u64.checked_shl(shift).unwrap_or(u64::MAX);
+        let millis = AUTH_RETRY_BASE_MS
+            .saturating_mul(factor)
+            .min(AUTH_RETRY_MAX_MS);
+        Duration::from_millis(millis)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_retry_backoff_grows_and_caps() {
+        assert_eq!(
+            MyIdClient::auth_retry_backoff(1),
+            Duration::from_millis(100)
+        );
+        assert_eq!(
+            MyIdClient::auth_retry_backoff(2),
+            Duration::from_millis(200)
+        );
+        assert_eq!(
+            MyIdClient::auth_retry_backoff(3),
+            Duration::from_millis(400)
+        );
+        assert_eq!(
+            MyIdClient::auth_retry_backoff(4),
+            Duration::from_millis(800)
+        );
+        assert_eq!(
+            MyIdClient::auth_retry_backoff(10),
+            Duration::from_millis(2_000)
+        );
+    }
+
+    #[test]
+    fn retryable_auth_api_statuses() {
+        assert!(MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            429,
+            "rate limit"
+        )));
+        assert!(MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            500, "internal"
+        )));
+        assert!(MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            502,
+            "bad gateway"
+        )));
+        assert!(MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            503,
+            "unavailable"
+        )));
+    }
+
+    #[test]
+    fn non_retryable_auth_api_statuses() {
+        assert!(!MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            400,
+            "bad request"
+        )));
+        assert!(!MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            401,
+            "unauthorized"
+        )));
+        assert!(!MyIdClient::is_retryable_auth_error(&MyIdError::api(
+            403,
+            "forbidden"
+        )));
     }
 }
