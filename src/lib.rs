@@ -15,7 +15,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = "0.1.7"
+//! myid = "0.1.8"
 //! tokio = { version = "1", features = ["full"] }
 //! ```
 //! ## Tez boshlash
@@ -94,7 +94,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = { version = "0.1.7", default-features = false }
+//! myid = { version = "0.1.8", default-features = false }
 //! ```
 //!
 //! ## Modullar
