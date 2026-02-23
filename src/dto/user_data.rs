@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::types::{JobId, PassportData, Reuid};
+use crate::types::{JobId, Reuid};
 
 /// MyID API foydalanuvchi ma'lumotlari javobi (`GET /api/v1/sdk/data?code=`).
 ///
@@ -27,8 +27,8 @@ pub struct UserDataResponse {
 pub struct UserData {
     /// Yuz taqqoslash natijasi (0.0 dan 1.0 gacha). Masalan: `0.92`.
     pub comparison_value: f64,
-    /// Foydalanuvchining pasport seriyasi va raqami.
-    pub pass_data: PassportData,
+    /// Shifrlangan pasport ma'lumoti (raw string).
+    pub pass_data: String,
     /// Verifikatsiya jarayonining unikal ish identifikatori (UUID).
     pub job_id: JobId,
     /// Foydalanuvchining to'liq profil ma'lumotlari.
@@ -68,12 +68,26 @@ pub struct CommonData {
     pub gender: String,
     /// Tug'ilgan joyi.
     pub birth_place: String,
+    /// Tug'ilgan davlat nomi (agar mavjud bo'lsa).
+    pub birth_country: Option<String>,
+    /// Tug'ilgan davlat ID (agar mavjud bo'lsa).
+    pub birth_country_id: Option<String>,
+    /// Tug'ilgan davlat CBU ID (agar mavjud bo'lsa).
+    pub birth_country_id_cbu: Option<String>,
     /// Tug'ilgan sanasi (YYYY-MM-DD formatida).
     pub birth_date: String,
     /// Millati.
     pub nationality: String,
+    /// Millat ID (agar mavjud bo'lsa).
+    pub nationality_id: Option<String>,
+    /// Millat CBU ID (agar mavjud bo'lsa).
+    pub nationality_id_cbu: Option<String>,
     /// Fuqaroligi.
     pub citizenship: String,
+    /// Fuqarolik ID (agar mavjud bo'lsa).
+    pub citizenship_id: Option<String>,
+    /// Fuqarolik CBU ID (agar mavjud bo'lsa).
+    pub citizenship_id_cbu: Option<String>,
     /// SDK tomonidan hisoblangan xesh.
     pub sdk_hash: String,
     /// Pasport ma'lumotlari oxirgi yangilangan vaqt.
@@ -201,7 +215,7 @@ pub struct ReuId {
     /// Amal qilish muddati (Unix timestamp, soniyalarda). Masalan: `1722412345`.
     ///
     /// Shartnomaga qarab oyning oxirgi kuni yoki yil oxirida tugaydi.
-    pub expires_at: i32,
+    pub expires_at: i64,
     /// Qayta ishlatiladigan UUID qiymati. Masalan: `"9b7e597e-893e-4e11-92cf-f4e7d4f923b1"`.
     pub value: Reuid,
 }

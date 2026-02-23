@@ -116,7 +116,7 @@ fn session_status_parses_snake_and_upper() {
 #[test]
 fn session_status_all_variants() {
     use myid::dto::SessionStatus;
-    
+
     let closed: SessionStatus = serde_json::from_str("\"closed\"").unwrap();
     let expired: SessionStatus = serde_json::from_str("\"expired\"").unwrap();
 

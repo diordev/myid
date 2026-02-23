@@ -68,9 +68,9 @@ async fn session_with_pinfl(client: &MyIdClient) {
 async fn session_with_reuid(client: &MyIdClient) {
     println!("=== REUID orqali ===");
 
-    let request = CreateSessionRequest::WithReuid(
-        SessionWithReuid::new(Reuid::parse("9b7e597e-893e-4e11-92cf-f4e7d4f923b1").expect("to'g'ri REUID")),
-    );
+    let request = CreateSessionRequest::WithReuid(SessionWithReuid::new(
+        Reuid::parse("9b7e597e-893e-4e11-92cf-f4e7d4f923b1").expect("to'g'ri REUID"),
+    ));
 
     print_result(client.create_session(&request).await);
 }

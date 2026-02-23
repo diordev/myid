@@ -7,9 +7,9 @@
 
 use std::time::Duration;
 
-use myid::error::MyIdError;
 use myid::Config;
 use myid::MyIdResult;
+use myid::error::MyIdError;
 
 fn main() -> MyIdResult<()> {
     minimal_config()?;
@@ -64,7 +64,11 @@ fn from_env_config() {
 
     match Config::from_env(None) {
         Ok(cfg) => {
-            println!("Yuklandi: base_url={}, client_id={}", cfg.base_url(), cfg.client_id());
+            println!(
+                "Yuklandi: base_url={}, client_id={}",
+                cfg.base_url(),
+                cfg.client_id()
+            );
         }
         Err(MyIdError::Config { message }) => {
             println!("Config xatosi (kutilgan): {message}");
@@ -79,11 +83,11 @@ fn error_handling_examples() {
     println!("=== Xato holatlari ===");
 
     let cases: &[(&str, &str, &str)] = &[
-        ("not-a-url", "id", "secret"),   // noto'g'ri URL
-        ("ftp://x.uz", "id", "secret"),   // ruxsatsiz scheme
-        ("https://x.uz", "", "secret"),   // bo'sh client_id
-        ("https://x.uz", "id", ""),       // bo'sh client_secret
-        ("", "id", "secret"),             // bo'sh URL
+        ("not-a-url", "id", "secret"),  // noto'g'ri URL
+        ("ftp://x.uz", "id", "secret"), // ruxsatsiz scheme
+        ("https://x.uz", "", "secret"), // bo'sh client_id
+        ("https://x.uz", "id", ""),     // bo'sh client_secret
+        ("", "id", "secret"),           // bo'sh URL
     ];
 
     for (url, id, secret) in cases {

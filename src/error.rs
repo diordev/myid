@@ -54,7 +54,7 @@
 /// let err = MyIdError::api(401, "unauthorized");
 /// println!("{err}"); // "api error 401: unauthorized"
 /// ```
-/// 
+///
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum MyIdError {

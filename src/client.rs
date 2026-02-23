@@ -221,7 +221,10 @@ impl MyIdClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn recover_session(&self, session_id: SessionId) -> MyIdResult<SessionStatusResponse> {
+    pub async fn recover_session(
+        &self,
+        session_id: SessionId,
+    ) -> MyIdResult<SessionStatusResponse> {
         let token = self.get_token().await?;
         let url = self.endpoint(&format!("{}/{}", SESSION_RECOVERY_PATH, session_id))?;
 

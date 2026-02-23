@@ -18,6 +18,7 @@ macro_rules! define_uuid_type {
             /// String qiymatdan parse qiladi.
             ///
             /// Hyphenated, simple va uppercase formatlar qabul qilinadi.
+            /// Faqat UUID v4 qabul qilinadi.
             /// Natija canonical ko'rinishda saqlanadi (lowercase + hyphenated).
             pub fn parse(value: impl AsRef<str>) -> $crate::error::MyIdResult<Self> {
                 let value = value.as_ref().trim();
@@ -27,6 +28,13 @@ macro_rules! define_uuid_type {
                         $field,
                     ))
                 })?;
+                if parsed.get_version() != Some(uuid::Version::Random) {
+                    return Err($crate::error::MyIdError::validation(format!(
+                        "{} must be a UUID v4, got: {value}",
+                        $field,
+                    )));
+                }
+
                 Ok(Self(parsed))
             }
 
@@ -94,6 +102,7 @@ macro_rules! uuid_type_tests {
         const VALID: &str = "9b7e597e-893e-4e11-92cf-f4e7d4f923b1";
         const VALID_UPPER: &str = "9B7E597E-893E-4E11-92CF-F4E7D4F923B1";
         const VALID_SIMPLE: &str = "9b7e597e893e4e1192cff4e7d4f923b1";
+        const INVALID_V1: &str = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
         #[test]
         fn valid_hyphenated() {
@@ -124,6 +133,7 @@ macro_rules! uuid_type_tests {
             assert!($Type::parse("").is_err());
             assert!($Type::parse("   ").is_err());
             assert!($Type::parse("9b7e597e-893e-4e11-92cf").is_err());
+            assert!($Type::parse(INVALID_V1).is_err());
         }
 
         #[test]

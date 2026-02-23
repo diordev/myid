@@ -32,6 +32,15 @@ fn reuid_invalid_rejected() {
 }
 
 #[test]
+fn non_v4_uuid_rejected() {
+    // UUID v1 namunasi
+    let v1 = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
+    assert!(SessionId::parse(v1).is_err());
+    assert!(Reuid::parse(v1).is_err());
+    assert!(JobId::parse(v1).is_err());
+}
+
+#[test]
 fn job_id_generate_and_roundtrip() {
     let id = JobId::generate();
     let s = id.to_string();

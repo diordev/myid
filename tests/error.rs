@@ -20,7 +20,9 @@ fn api_error_display() {
 
 #[test]
 fn internal_error_display() {
-    let err = MyIdError::Internal { message: "lock poisoned".into() };
+    let err = MyIdError::Internal {
+        message: "lock poisoned".into(),
+    };
     assert_eq!(err.to_string(), "internal error: lock poisoned");
 }
 
@@ -34,7 +36,12 @@ fn is_api_true_for_api_variant() {
 fn is_api_false_for_other_variants() {
     assert!(!MyIdError::config("x").is_api());
     assert!(!MyIdError::validation("x").is_api());
-    assert!(!MyIdError::Internal { message: "x".into() }.is_api());
+    assert!(
+        !MyIdError::Internal {
+            message: "x".into()
+        }
+        .is_api()
+    );
 }
 
 #[test]
@@ -46,7 +53,13 @@ fn api_status_returns_code() {
 #[test]
 fn api_status_none_for_non_api() {
     assert_eq!(MyIdError::config("x").api_status(), None);
-    assert_eq!(MyIdError::Internal { message: "x".into() }.api_status(), None);
+    assert_eq!(
+        MyIdError::Internal {
+            message: "x".into()
+        }
+        .api_status(),
+        None
+    );
 }
 
 #[test]
