@@ -89,7 +89,7 @@ async fn handle_callback_empty_code_returns_validation_error() -> MyIdResult<()>
     let config = fast_config("http://127.0.0.1:1")?;
     let client = MyIdClient::new(config)?;
 
-    let err = client.handle_callback("".to_string()).await.unwrap_err();
+    let err = client.handle_callback("").await.unwrap_err();
     assert!(matches!(err, myid::error::MyIdError::Validation { .. }));
     Ok(())
 }
@@ -99,7 +99,7 @@ async fn handle_callback_whitespace_code_returns_validation_error() -> MyIdResul
     let config = fast_config("http://127.0.0.1:1")?;
     let client = MyIdClient::new(config)?;
 
-    let err = client.handle_callback("   ".to_string()).await.unwrap_err();
+    let err = client.handle_callback("   ").await.unwrap_err();
     assert!(matches!(err, myid::error::MyIdError::Validation { .. }));
     Ok(())
 }
@@ -108,7 +108,7 @@ async fn handle_callback_whitespace_code_returns_validation_error() -> MyIdResul
 async fn handle_callback_without_server_returns_error() -> MyIdResult<()> {
     let config = fast_config("http://127.0.0.1:1")?;
     let client = MyIdClient::new(config)?;
-    let code = "550e8400-e29b-41d4-a716-446655440000".to_string();
+    let code = "550e8400-e29b-41d4-a716-446655440000";
     assert!(client.handle_callback(code).await.is_err());
     Ok(())
 }

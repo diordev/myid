@@ -1,5 +1,5 @@
-use std::time::Instant;
 use myid::prelude::*;
+use std::time::Instant;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

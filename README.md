@@ -18,7 +18,7 @@ O'zbekiston Respublikasi **MyID** identifikatsiya tizimi uchun rasmiy bo'lmagan 
 
 ```toml
 [dependencies]
-myid = "0.1.8"
+myid = "0.1.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -32,7 +32,7 @@ tokio = { version = "1", features = ["full"] }
 
 ```toml
 [dependencies]
-myid = { version = "0.1.8", default-features = false }
+myid = { version = "0.1.9", default-features = false }
 ```
 
 ## Tez boshlash

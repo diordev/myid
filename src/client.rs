@@ -107,7 +107,9 @@ struct TokenState {
 
 impl TokenState {
     fn is_valid(&self, margin: Duration) -> bool {
-        Instant::now() + margin < self.expires_at
+        Instant::now()
+            .checked_add(margin)
+            .is_some_and(|t| t < self.expires_at)
     }
 }
 
@@ -169,32 +171,16 @@ impl MyIdClient {
         &self,
         request: &CreateSessionRequest,
     ) -> MyIdResult<SessionResponse> {
-        let token = self.get_token().await?;
         let url = self.endpoint(CREATE_SESSION_PATH)?;
-
         let response = self
-            .http
-            .post(url.as_str())
-            .bearer_auth(&token)
-            .json(request)
-            .send()
+            .send_with_401_retry(|token| {
+                self.http
+                    .post(url.as_str())
+                    .bearer_auth(token)
+                    .json(request)
+                    .send()
+            })
             .await?;
-
-        if response.status() == StatusCode::UNAUTHORIZED {
-            self.invalidate_cached_token().await;
-
-            let retry_token = self.get_token().await?;
-            let retry_response = self
-                .http
-                .post(url.as_str())
-                .bearer_auth(retry_token)
-                .json(request)
-                .send()
-                .await?;
-
-            return Self::handle_response(retry_response).await;
-        }
-
         Self::handle_response(response).await
     }
 
@@ -253,30 +239,10 @@ impl MyIdClient {
         &self,
         session_id: SessionId,
     ) -> MyIdResult<SessionStatusResponse> {
-        let token = self.get_token().await?;
         let url = self.endpoint(&format!("{}/{}", SESSION_RECOVERY_PATH, session_id))?;
-
         let response = self
-            .http
-            .get(url.as_str())
-            .bearer_auth(&token)
-            .send()
+            .send_with_401_retry(|token| self.http.get(url.as_str()).bearer_auth(token).send())
             .await?;
-
-        if response.status() == StatusCode::UNAUTHORIZED {
-            self.invalidate_cached_token().await;
-
-            let retry_token = self.get_token().await?;
-            let retry_response = self
-                .http
-                .get(url.as_str())
-                .bearer_auth(retry_token)
-                .send()
-                .await?;
-
-            return Self::handle_response(retry_response).await;
-        }
-
         Self::handle_response(response).await
     }
 
@@ -303,7 +269,7 @@ impl MyIdClient {
     /// # async fn example() -> MyIdResult<()> {
     /// # let config = Config::new("https://myid.uz", "id", "secret")?;
     /// # let client = MyIdClient::new(config)?;
-    /// let code = "550e8400-e29b-41d4-a716-446655440000".to_string();
+    /// let code = "550e8400-e29b-41d4-a716-446655440000";
     ///
     /// match client.handle_callback(code).await {
     ///     Ok(user_data) => {
@@ -316,37 +282,18 @@ impl MyIdClient {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn handle_callback(&self, code: String) -> MyIdResult<UserDataResponse> {
+    pub async fn handle_callback(&self, code: &str) -> MyIdResult<UserDataResponse> {
         if code.trim().is_empty() {
             return Err(MyIdError::validation("code bo'sh bo'lishi mumkin emas"));
         }
 
-        let token = self.get_token().await?;
         let mut url = self.endpoint(USER_DATA_PATH)?;
-        url.query_pairs_mut().append_pair("code", &code);
-        let callback_url = url.to_string();
+        url.query_pairs_mut().append_pair("code", code);
+        let url_str = url.to_string(); // closure uchun owned
 
         let response = self
-            .http
-            .get(callback_url.as_str())
-            .bearer_auth(&token)
-            .send()
+            .send_with_401_retry(|token| self.http.get(url_str.as_str()).bearer_auth(token).send())
             .await?;
-
-        if response.status() == StatusCode::UNAUTHORIZED {
-            self.invalidate_cached_token().await;
-
-            let retry_token = self.get_token().await?;
-            let retry_response = self
-                .http
-                .get(callback_url.as_str())
-                .bearer_auth(retry_token)
-                .send()
-                .await?;
-
-            return Self::handle_response(retry_response).await;
-        }
-
         Self::handle_response(response).await
     }
 
@@ -358,28 +305,54 @@ impl MyIdClient {
     /// exponential backoff bilan bir necha marta qayta urinadi.
     async fn authenticate(&self) -> MyIdResult<AccessTokenResponse> {
         let url = self.endpoint(ACCESS_TOKEN_PATH)?;
-        let mut attempt: u8 = 1;
+        let body = AccessTokenRequest {
+            client_id: self.config.client_id(),
+            client_secret: self.config.client_secret(),
+        };
 
-        loop {
-            let body = AccessTokenRequest {
-                client_id: self.config.client_id(),
-                client_secret: self.config.client_secret(),
-            };
+        let max_attempts = AUTH_MAX_ATTEMPTS.max(1);
 
-            let result = match self.http.post(url.as_str()).json(&body).send().await {
-                Ok(response) => Self::handle_response(response).await,
-                Err(e) => Err(MyIdError::http(e)),
-            };
+        for attempt in 1..=max_attempts {
+            let is_last = attempt == max_attempts;
 
-            match result {
-                Ok(token) => return Ok(token),
-                Err(err) if attempt < AUTH_MAX_ATTEMPTS && Self::is_retryable_auth_error(&err) => {
-                    tokio::time::sleep(Self::auth_retry_backoff(attempt)).await;
-                    attempt += 1;
+            match self.http.post(url.as_str()).json(&body).send().await {
+                Ok(resp) => match Self::handle_response(resp).await {
+                    Ok(token) => return Ok(token),
+                    Err(e) if !is_last && Self::is_retryable_auth_error(&e) => {
+                        tokio::time::sleep(Self::auth_retry_backoff(attempt)).await;
+                    }
+                    Err(e) => return Err(e),
+                },
+                Err(e) => {
+                    let err = MyIdError::http(e);
+                    if !is_last && Self::is_retryable_auth_error(&err) {
+                        tokio::time::sleep(Self::auth_retry_backoff(attempt)).await;
+                    } else {
+                        return Err(err);
+                    }
                 }
-                Err(err) => return Err(err),
             }
         }
+
+        // max_attempts >= 1 → oxirgi iteratsiyada doim return Err ishlaydi
+        unreachable!("authenticate: oxirgi urinishda doim Err qaytariladi")
+    }
+
+    async fn send_with_401_retry<F, Fut>(&self, build_request: F) -> MyIdResult<reqwest::Response>
+    where
+        F: Fn(String) -> Fut,
+        Fut: std::future::Future<Output = reqwest::Result<reqwest::Response>>,
+    {
+        let token = self.get_token().await?;
+        let response = build_request(token).await?;
+
+        if response.status() == StatusCode::UNAUTHORIZED {
+            self.invalidate_cached_token().await;
+            let retry_token = self.get_token().await?;
+            return Ok(build_request(retry_token).await?);
+        }
+
+        Ok(response)
     }
 
     // --- Private: Token cache ---
@@ -478,7 +451,7 @@ impl MyIdClient {
 
         Ok(builder.build()?)
     }
-    
+
     fn is_retryable_auth_error(err: &MyIdError) -> bool {
         match err {
             MyIdError::Api { status, .. } => *status == 429 || (500..=599).contains(status),

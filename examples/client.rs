@@ -127,7 +127,7 @@ async fn handle_callback_example(client: &MyIdClient) {
     println!("=== Callback qayta ishlash (primary) ===");
 
     // code — mobil ilova MyID dan olib backendga yuborgan bir martalik UUID (TTL: 5 daqiqa)
-    let code = "9b7e597e-893e-4e11-92cf-f4e7d4f923b1".to_string();
+    let code = "9b7e597e-893e-4e11-92cf-f4e7d4f923b1";
 
     match client.handle_callback(code).await {
         Ok(resp) => {
