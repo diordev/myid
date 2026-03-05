@@ -3,7 +3,7 @@ use myid::types::BirthDate;
 #[test]
 fn valid_date_parses() {
     let d = BirthDate::parse("1990-05-15").unwrap();
-    assert_eq!(d.to_formatted_string(), "1990-05-15");
+    assert_eq!(d.to_string(), "1990-05-15");
 }
 
 #[test]

@@ -26,8 +26,8 @@ impl ApiErrorBody {
     pub fn message(&self) -> String {
         match (&self.err, &self.detail) {
             (Some(e), Some(d)) => format!("{e}: {d}"),
-            (None, Some(d)) => d.clone(),
-            (Some(e), None) => e.clone(),
+            (None, Some(d)) => d.to_owned(),
+            (Some(e), None) => e.to_owned(),
             (None, None) => "unknown api error".to_string(),
         }
     }

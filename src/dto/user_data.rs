@@ -1,3 +1,16 @@
+//! MyID foydalanuvchi ma'lumotlari javob DTO'lari.
+//!
+//! Primary va secondary flow uchun response strukturalari:
+//!
+//! | Struct              | Tavsif                              |
+//! |---------------------|-------------------------------------|
+//! | [`UserDataResponse`]| API asosiy javob wrapper'i          |
+//! | [`UserData`]        | Asosiy ma'lumotlar bloki            |
+//! | [`Profile`]         | To'liq profil (primary flow)        |
+//! | [`CommonData`]      | Shaxsiy ma'lumotlar                 |
+//! | [`DocData`]         | Pasport ma'lumotlari                |
+//! | [`ReuId`]           | Qayta ishlatiladigan identifikator  |
+
 use serde::Deserialize;
 
 use crate::types::{JobId, Reuid};

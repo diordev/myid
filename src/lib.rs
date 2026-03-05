@@ -15,7 +15,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = "0.1.8"
+//! myid = "0.1.10"
 //! tokio = { version = "1", features = ["full"] }
 //! ```
 //! ## Tez boshlash
@@ -49,8 +49,8 @@
 //!
 //! # fn main() -> MyIdResult<()> {
 //! let config = Config::new("https://myid.uz", "client_id", "client_secret")?
-//!     .with_timeout(Duration::from_secs(30))
-//!     .with_connect_timeout(Duration::from_secs(5))
+//!     .with_timeout(Duration::from_secs(30))?
+//!     .with_connect_timeout(Duration::from_secs(5))?
 //!     .with_user_agent("my-backend/1.0")
 //!     .with_proxy("http://proxy.local:8080")?;
 //! # Ok(())
@@ -94,7 +94,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! myid = { version = "0.1.8", default-features = false }
+//! myid = { version = "0.1.10", default-features = false }
 //! ```
 //!
 //! ## Modullar

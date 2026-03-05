@@ -11,6 +11,7 @@
 //! | Variant | Sababi | Misol |
 //! |---------|--------|-------|
 //! | [`Config`](MyIdError::Config) | Konfiguratsiya xatosi | Noto'g'ri URL, yo'q env var |
+//! | [`Validation`](MyIdError::Validation) | Validatsiya xatosi | Bo'sh maydon, noto'g'ri format |
 //! | [`Http`](MyIdError::Http) | Transport xatosi | Timeout, DNS, TLS |
 //! | [`Api`](MyIdError::Api) | API 4xx/5xx javobi | 401 Unauthorized, 403 Forbidden |
 //! | [`Internal`](MyIdError::Internal) | SDK ichki xatosi | Lock poisoning |
@@ -166,7 +167,7 @@ impl MyIdError {
     ///
     /// let err = MyIdError::config("noto'g'ri URL");
     /// let err = MyIdError::config(format!("yo'q: {}", "MYID_BASE_URL"));
-    /// ```    
+    /// ```
     #[inline]
     pub fn config(message: impl Into<String>) -> Self {
         Self::Config {

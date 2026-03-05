@@ -3,7 +3,7 @@ use myid::types::{JobId, Reuid, SessionId};
 #[test]
 fn session_id_parses_hyphenated() {
     let id = SessionId::parse("9b7e597e-893e-4e11-92cf-f4e7d4f923b1").unwrap();
-    assert_eq!(id.as_str(), "9b7e597e-893e-4e11-92cf-f4e7d4f923b1");
+    assert_eq!(id.to_hyphenated(), "9b7e597e-893e-4e11-92cf-f4e7d4f923b1");
 }
 
 #[test]

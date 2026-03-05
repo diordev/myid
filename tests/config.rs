@@ -57,7 +57,7 @@ fn trailing_slash_with_path() -> MyIdResult<()> {
 #[test]
 fn with_timeout_overrides_default() -> MyIdResult<()> {
     let cfg =
-        Config::new("https://example.uz", "id", "secret")?.with_timeout(Duration::from_secs(60));
+        Config::new("https://example.uz", "id", "secret")?.with_timeout(Duration::from_secs(60))?;
 
     assert_eq!(cfg.timeout(), Duration::from_secs(60));
     Ok(())
@@ -66,7 +66,7 @@ fn with_timeout_overrides_default() -> MyIdResult<()> {
 #[test]
 fn with_connect_timeout_overrides_default() -> MyIdResult<()> {
     let cfg = Config::new("https://example.uz", "id", "secret")?
-        .with_connect_timeout(Duration::from_secs(10));
+        .with_connect_timeout(Duration::from_secs(10))?;
 
     assert_eq!(cfg.connection_timeout(), Duration::from_secs(10));
     Ok(())
@@ -93,8 +93,8 @@ fn with_proxy_sets_proxy_url() -> MyIdResult<()> {
 #[test]
 fn full_config_with_all_options() -> MyIdResult<()> {
     let cfg = Config::new("https://myid.example.uz", "app_id", "secret_123")?
-        .with_timeout(Duration::from_secs(30))
-        .with_connect_timeout(Duration::from_secs(5))
+        .with_timeout(Duration::from_secs(30))?
+        .with_connect_timeout(Duration::from_secs(5))?
         .with_user_agent("my-service/2.0")
         .with_proxy("http://proxy.corp.local:8080")?;
 
@@ -314,5 +314,5 @@ fn whitespace_client_secret_returns_error() {
 fn config_error_variant_on_empty_credentials() {
     use myid::error::MyIdError;
     let err = Config::new("https://example.uz", "", "secret").unwrap_err();
-    assert!(matches!(err, MyIdError::Validation { .. }));
+    assert!(matches!(err, MyIdError::Config { .. }));
 }

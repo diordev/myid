@@ -6,8 +6,8 @@ use myid::error::MyIdResult;
 
 fn fast_config(url: &str) -> MyIdResult<Config> {
     Ok(Config::new(url, "id", "secret")?
-        .with_timeout(Duration::from_millis(100))
-        .with_connect_timeout(Duration::from_millis(100)))
+        .with_timeout(Duration::from_millis(100))?
+        .with_connect_timeout(Duration::from_millis(100))?)
 }
 
 // ===== MyIdClient::new() =====
@@ -30,8 +30,8 @@ fn new_with_proxy() -> MyIdResult<()> {
 #[test]
 fn new_with_custom_timeouts() -> MyIdResult<()> {
     let config = Config::new("https://myid.uz", "id", "secret")?
-        .with_timeout(Duration::from_secs(60))
-        .with_connect_timeout(Duration::from_secs(10));
+        .with_timeout(Duration::from_secs(60))?
+        .with_connect_timeout(Duration::from_secs(10))?;
     assert!(MyIdClient::new(config).is_ok());
     Ok(())
 }

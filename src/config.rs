@@ -49,8 +49,8 @@
 //!
 //! # fn main() -> MyIdResult<()> {
 //! let config = Config::new("https://myid.uz", "client_id", "client_secret")?
-//!     .with_timeout(Duration::from_secs(30))
-//!     .with_connect_timeout(Duration::from_secs(5))
+//!     .with_timeout(Duration::from_secs(30))?
+//!     .with_connect_timeout(Duration::from_secs(5))?
 //!     .with_user_agent("my-backend/1.0")
 //!     .with_proxy("http://proxy.corp.local:8080")?;
 //! # Ok(())
@@ -182,12 +182,12 @@ pub struct Config {
     /// TCP/TLS ulanish bosqichi uchun connection timeout.
     ///
     /// Default: 2 soniya. `with_connect_timeout()` orqali o'zgartirish mumkin.
-    connection_timeout_ms: Duration,
+    connection_timeout: Duration,
 
     /// HTTP so'rov uchun timeout.
     ///
     /// Default: 15 soniya. `with_timeout()` orqali o'zgartirish mumkin.
-    timeout_ms: Duration,
+    timeout: Duration,
 
     /// HTTP `User-Agent` sarlavhasi — observability va diagnostika uchun.
     ///
@@ -213,15 +213,15 @@ impl Config {
     /// - `base_url` — MyID API bazaviy URL (masalan: `https://myid.uz`).
     ///   Trailing slash avtomatik qo'shiladi. Faqat `http` va `https` qabul qilinadi.
     /// - `client_id` — OAuth 2.0 client identifikator (public).
+    ///   Bo'sh va oxiridagi bo'shliqlar avtomatik olib tashlanadi.
     /// - `client_secret` — OAuth 2.0 client secret (**maxfiy**, faqat backend'da saqlang).
+    ///   Bo'sh va oxiridagi bo'shliqlar avtomatik olib tashlanadi.
     ///
     /// # Xatolar
     ///
     /// [`MyIdError::Config`] qaytaradi agar:
     /// - `base_url` noto'g'ri URL formatida bo'lsa
     /// - URL scheme `http` yoki `https` dan farqli bo'lsa
-    ///
-    /// [`MyIdError::Validation`] qaytaradi agar:
     /// - `client_id` bo'sh yoki faqat bo'shliqlardan iborat bo'lsa
     /// - `client_secret` bo'sh yoki faqat bo'shliqlardan iborat bo'lsa
     ///
@@ -251,24 +251,22 @@ impl Config {
         client_secret: impl Into<String>,
     ) -> MyIdResult<Self> {
         let base_url = Self::parse_and_normalize_url(&base_url)?;
-        let client_id = client_id.into();
-        let client_secret = client_secret.into();
+        let client_id = client_id.into().trim().to_owned();
+        let client_secret = client_secret.into().trim().to_owned();
 
-        if client_id.trim().is_empty() {
-            return Err(MyIdError::validation("client_id bo'sh bo'lmasligi kerak"));
+        if client_id.is_empty() {
+            return Err(MyIdError::config("client_id bo'sh bo'lmasligi kerak"));
         }
-        if client_secret.trim().is_empty() {
-            return Err(MyIdError::validation(
-                "client_secret bo'sh bo'lmasligi kerak",
-            ));
+        if client_secret.is_empty() {
+            return Err(MyIdError::config("client_secret bo'sh bo'lmasligi kerak"));
         }
 
         Ok(Self {
             base_url,
             client_id,
             client_secret,
-            connection_timeout_ms: Duration::from_millis(DEFAULT_CONNECT_TIMEOUT_MS),
-            timeout_ms: Duration::from_millis(DEFAULT_TIMEOUT_MS),
+            connection_timeout: Duration::from_millis(DEFAULT_CONNECT_TIMEOUT_MS),
+            timeout: Duration::from_millis(DEFAULT_TIMEOUT_MS),
             user_agent: Cow::Borrowed(DEFAULT_USER_AGENT),
             proxy_url: None,
         })
@@ -320,28 +318,33 @@ impl Config {
     pub fn from_env(prefix: Option<&str>) -> MyIdResult<Self> {
         #[cfg(feature = "dotenvy")]
         {
-            let _ = dotenvy::dotenv();
+            match dotenvy::dotenv() {
+                Ok(_) => {}
+                Err(dotenvy::Error::Io(e)) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => {
+                    return Err(MyIdError::config(format!(".env parse error: {e}")));
+                }
+            }
         }
 
-        let p = Self::normalize_prefix(prefix.unwrap_or(DEFAULT_PREFIX));
+        let p = Self::normalize_prefix(prefix);
+        let key = |suffix: &str| format!("{p}{suffix}");
 
-        let base_url =
-            Self::parse_and_normalize_url(&Self::read_required(&format!("{p}BASE_URL"))?)?;
-        let client_id = Self::read_required(&format!("{p}CLIENT_ID"))?;
-        let client_secret = Self::read_required(&format!("{p}CLIENT_SECRET"))?;
+        let base_url = Self::parse_and_normalize_url(&Self::read_required(&key("BASE_URL"))?)?;
 
-        let connection_timeout_ms = Self::read_u64_or_default(
-            &format!("{p}CONNECT_TIMEOUT_MS"),
-            DEFAULT_CONNECT_TIMEOUT_MS,
-        )?;
-        let timeout_ms = Self::read_u64_or_default(&format!("{p}TIMEOUT_MS"), DEFAULT_TIMEOUT_MS)?;
+        let client_id = Self::read_required(&key("CLIENT_ID"))?;
+        let client_secret = Self::read_required(&key("CLIENT_SECRET"))?;
 
-        let user_agent: Cow<'static, str> = match Self::read_optional(&format!("{p}USER_AGENT")) {
+        let connection_timeout_ms =
+            Self::read_u64_or_default(&key("CONNECT_TIMEOUT_MS"), DEFAULT_CONNECT_TIMEOUT_MS)?;
+        let timeout_ms = Self::read_u64_or_default(&key("TIMEOUT_MS"), DEFAULT_TIMEOUT_MS)?;
+
+        let user_agent: Cow<'static, str> = match Self::read_optional(&key("USER_AGENT")) {
             Some(ua) => Cow::Owned(ua),
             None => Cow::Borrowed(DEFAULT_USER_AGENT),
         };
 
-        let proxy_url = Self::read_optional(&format!("{p}PROXY_URL"))
+        let proxy_url = Self::read_optional(&key("PROXY_URL"))
             .map(|raw| Self::parse_url(&raw))
             .transpose()?;
 
@@ -349,8 +352,8 @@ impl Config {
             base_url,
             client_id,
             client_secret,
-            connection_timeout_ms: Duration::from_millis(connection_timeout_ms),
-            timeout_ms: Duration::from_millis(timeout_ms),
+            connection_timeout: Duration::from_millis(connection_timeout_ms),
+            timeout: Duration::from_millis(timeout_ms),
             user_agent,
             proxy_url,
         })
@@ -374,17 +377,19 @@ impl Config {
     ///
     /// # fn main() -> MyIdResult<()> {
     /// let config = Config::new("https://myid.uz", "id", "secret")?
-    ///     .with_connect_timeout(Duration::from_secs(10));
+    ///     .with_connect_timeout(Duration::from_secs(10))?;
     ///
     /// assert_eq!(config.connection_timeout(), Duration::from_secs(10));
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     #[inline]
-    pub fn with_connect_timeout(mut self, timeout: Duration) -> Self {
-        self.connection_timeout_ms = timeout;
-        self
+    pub fn with_connect_timeout(mut self, timeout: Duration) -> MyIdResult<Self> {
+        if timeout.is_zero() {
+            return Err(MyIdError::validation("connection timeout must be > 0"));
+        }
+        self.connection_timeout = timeout;
+        Ok(self)
     }
 
     /// HTTP so'rov timeout'ini o'zgartiradi.
@@ -403,17 +408,19 @@ impl Config {
     ///
     /// # fn main() -> MyIdResult<()> {
     /// let config = Config::new("https://myid.uz", "id", "secret")?
-    ///     .with_timeout(Duration::from_secs(60));
+    ///     .with_timeout(Duration::from_secs(60))?;
     ///
     /// assert_eq!(config.timeout(), Duration::from_secs(60));
     /// # Ok(())
     /// # }
     /// ```
-    #[must_use]
     #[inline]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout_ms = timeout;
-        self
+    pub fn with_timeout(mut self, timeout: Duration) -> MyIdResult<Self> {
+        if timeout.is_zero() {
+            return Err(MyIdError::validation("timeout must be > 0"));
+        }
+        self.timeout = timeout;
+        Ok(self)
     }
 
     /// HTTP `User-Agent` sarlavhasini o'zgartiradi.
@@ -441,7 +448,12 @@ impl Config {
     #[must_use]
     #[inline]
     pub fn with_user_agent(mut self, agent: impl Into<String>) -> Self {
-        self.user_agent = Cow::Owned(agent.into());
+        let agent = agent.into().trim().to_owned();
+        if agent.is_empty() {
+            self.user_agent = Cow::Borrowed(DEFAULT_USER_AGENT);
+        } else {
+            self.user_agent = Cow::Owned(agent);
+        }
         self
     }
 
@@ -477,6 +489,7 @@ impl Config {
     /// # Ok(())
     /// # }
     /// ```
+    #[inline]
     pub fn with_proxy(mut self, url: impl AsRef<str>) -> MyIdResult<Self> {
         self.proxy_url = Some(Self::parse_url(&url)?);
         Ok(self)
@@ -527,7 +540,7 @@ impl Config {
     /// Default: 2 soniya. [`Config::with_connect_timeout()`] orqali o'zgartiriladi.
     #[inline]
     pub fn connection_timeout(&self) -> Duration {
-        self.connection_timeout_ms
+        self.connection_timeout
     }
 
     /// HTTP so'rov timeout qiymatini qaytaradi.
@@ -535,7 +548,7 @@ impl Config {
     /// Default: 15 soniya. [`Config::with_timeout()`] orqali o'zgartiriladi.
     #[inline]
     pub fn timeout(&self) -> Duration {
-        self.timeout_ms
+        self.timeout
     }
 
     /// HTTP `User-Agent` header qiymatini qaytaradi.
@@ -596,7 +609,9 @@ impl Config {
         let mut url = Self::parse_url(&raw)?;
 
         if !url.path().ends_with('/') {
-            url.set_path(&format!("{}/", url.path()));
+            let mut path = url.path().to_owned();
+            path.push('/');
+            url.set_path(&path);
         }
         Ok(url)
     }
@@ -619,11 +634,11 @@ impl Config {
 
     /// Prefiksni normalizatsiya qiladi — oxirida `_` bo'lishini kafolatlaydi.
     ///
-    /// - Bo'sh string → `MYID_` (default)
-    /// - `"APP"` → `"APP_"`
-    /// - `"APP_"` → `"APP_"` (o'zgarishsiz)
-    fn normalize_prefix(prefix: &str) -> String {
-        let s = prefix.trim();
+    /// - `Some("")` — bo'sh string `None` bilan teng: `MYID_` ishlatiladi
+    /// - `Some("APP")` → `"APP_"`
+    /// - `Some("APP_")` → `"APP_"` (o'zgarishsiz)
+    fn normalize_prefix(prefix: Option<&str>) -> String {
+        let s = prefix.unwrap_or(DEFAULT_PREFIX).trim();
         if s.is_empty() {
             return DEFAULT_PREFIX.to_string();
         }
@@ -711,8 +726,8 @@ impl fmt::Debug for Config {
             .field("base_url", &self.base_url.as_str())
             .field("client_id", &self.client_id.as_str())
             .field("client_secret", &"<redacted>")
-            .field("connection_timeout_ms", &self.connection_timeout_ms)
-            .field("timeout_ms", &self.timeout_ms)
+            .field("connection_timeout", &self.connection_timeout)
+            .field("timeout", &self.timeout)
             .field("user_agent", &self.user_agent.as_ref())
             .field("proxy_url", &self.proxy_url.as_ref().map(|p| p.as_str()))
             .finish()

@@ -43,13 +43,13 @@ macro_rules! define_uuid_type {
                 Self(uuid::Uuid::new_v4())
             }
 
-            /// Canonical `String` qaytaradi (lowercase, hyphenated UUID formati).
+            /// Canonical hyphenated UUID stringini qaytaradi
+            /// (masalan: `"9b7e597e-893e-4e11-92cf-f4e7d4f923b1"`).
             ///
             /// Har chaqiriqda yangi `String` allokatsiya qiladi.
-            /// Faqat chiqarish yoki saqlash kerak bo'lganda ishlating;
-            /// taqqoslash uchun to'g'ridan-to'g'ri `==` operatorini ishlating.
+            /// Taqqoslash uchun `==` operatorini to'g'ridan ishlating.
             #[inline]
-            pub fn as_str(&self) -> String {
+            pub fn to_hyphenated(&self) -> String {
                 self.0.as_hyphenated().to_string()
             }
 
@@ -112,19 +112,19 @@ macro_rules! uuid_type_tests {
         #[test]
         fn valid_simple() {
             let id = $Type::parse(VALID_SIMPLE).unwrap();
-            assert_eq!(id.as_str(), VALID);
+            assert_eq!(id.to_hyphenated(), VALID);
         }
 
         #[test]
         fn uppercase_normalized() {
             let id = $Type::parse(VALID_UPPER).unwrap();
-            assert_eq!(id.as_str(), VALID);
+            assert_eq!(id.to_hyphenated(), VALID);
         }
 
         #[test]
         fn whitespace_trimmed() {
             let id = $Type::parse(format!("  {VALID}  ")).unwrap();
-            assert_eq!(id.as_str(), VALID);
+            assert_eq!(id.to_hyphenated(), VALID);
         }
 
         #[test]
@@ -144,7 +144,7 @@ macro_rules! uuid_type_tests {
         #[test]
         fn display_matches_as_str() {
             let id = $Type::parse(VALID).unwrap();
-            assert_eq!(id.to_string(), id.as_str());
+            assert_eq!(id.to_string(), id.to_hyphenated());
         }
 
         #[test]

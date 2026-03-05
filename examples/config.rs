@@ -40,8 +40,8 @@ fn full_config() -> MyIdResult<()> {
     println!("=== Full Config ===");
 
     let cfg = Config::new("https://myid.example.uz", "app_id", "secret_123")?
-        .with_timeout(Duration::from_secs(30))
-        .with_connect_timeout(Duration::from_secs(5))
+        .with_timeout(Duration::from_secs(30))?
+        .with_connect_timeout(Duration::from_secs(5))?
         .with_user_agent("my-service/2.0")
         .with_proxy("http://proxy.corp.local:8080")?;
 

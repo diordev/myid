@@ -36,6 +36,8 @@ use crate::error::{MyIdError, MyIdResult};
 #[serde(try_from = "f64", into = "f64")]
 pub struct Threshold(f64);
 
+// SAFETY: Threshold faqat finite qiymatlar saqlaydi (NaN/Inf reject).
+// Shuning uchun Eq invariant buzilmaydi.
 impl Threshold {
     /// Minimal qiymat — `0.5`.
     pub const MIN: f64 = 0.5;
@@ -100,5 +102,15 @@ impl TryFrom<f64> for Threshold {
 impl From<Threshold> for f64 {
     fn from(value: Threshold) -> Self {
         value.0
+    }
+}
+
+// SAFETY: Threshold faqat finite qiymatlar saqlaydi (NaN/Inf reject).
+// Shuning uchun Eq invariant buzilmaydi.
+impl Eq for Threshold {}
+
+impl std::hash::Hash for Threshold {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
     }
 }

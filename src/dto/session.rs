@@ -47,12 +47,8 @@ use crate::types::{
 pub struct SessionWithPinfl {
     pinfl: Pinfl,
     birth_date: BirthDate,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    phone_number: Option<PhoneNumber>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    is_resident: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    threshold: Option<Threshold>,
+    #[serde(flatten)]
+    options: SessionOptions,
 }
 
 impl SessionWithPinfl {
@@ -61,16 +57,14 @@ impl SessionWithPinfl {
         Self {
             pinfl,
             birth_date,
-            phone_number: None,
-            is_resident: None,
-            threshold: None,
+            options: SessionOptions::default(),
         }
     }
 
     /// Telefon raqamini qo'shadi (ixtiyoriy).
     #[must_use]
     pub fn with_phone_number(mut self, phone_number: PhoneNumber) -> Self {
-        self.phone_number = Some(phone_number);
+        self.options.phone_number = Some(phone_number);
         self
     }
 
@@ -79,7 +73,7 @@ impl SessionWithPinfl {
     /// `true` — O'zbekiston rezidenti, `false` — xorijiy fuqaro.
     #[must_use]
     pub fn with_is_resident(mut self, is_resident: bool) -> Self {
-        self.is_resident = Some(is_resident);
+        self.options.is_resident = Some(is_resident);
         self
     }
 
@@ -88,7 +82,7 @@ impl SessionWithPinfl {
     /// Berilmasa server default qiymatini ishlatadi.
     #[must_use]
     pub fn with_threshold(mut self, threshold: Threshold) -> Self {
-        self.threshold = Some(threshold);
+        self.options.threshold = Some(threshold);
         self
     }
 
@@ -104,17 +98,17 @@ impl SessionWithPinfl {
 
     /// Telefon raqamini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn phone_number(&self) -> Option<&PhoneNumber> {
-        self.phone_number.as_ref()
+        self.options.phone_number.as_ref()
     }
 
     /// Rezidentlik belgisini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn is_resident(&self) -> Option<bool> {
-        self.is_resident
+        self.options.is_resident
     }
 
     /// Face matching threshold qiymatini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn threshold(&self) -> Option<Threshold> {
-        self.threshold
+        self.options.threshold
     }
 }
 
@@ -138,12 +132,8 @@ impl SessionWithPinfl {
 pub struct SessionWithPassport {
     pass_data: PassportData,
     birth_date: BirthDate,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    phone_number: Option<PhoneNumber>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    is_resident: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    threshold: Option<Threshold>,
+    #[serde(flatten)]
+    options: SessionOptions,
 }
 
 impl SessionWithPassport {
@@ -152,30 +142,28 @@ impl SessionWithPassport {
         Self {
             pass_data,
             birth_date,
-            phone_number: None,
-            is_resident: None,
-            threshold: None,
+            options: SessionOptions::default(),
         }
     }
 
     /// Telefon raqamini qo'shadi (ixtiyoriy).
     #[must_use]
     pub fn with_phone_number(mut self, phone_number: PhoneNumber) -> Self {
-        self.phone_number = Some(phone_number);
+        self.options.phone_number = Some(phone_number);
         self
     }
 
     /// Rezidentlik belgisini o'rnatadi (ixtiyoriy).
     #[must_use]
     pub fn with_is_resident(mut self, is_resident: bool) -> Self {
-        self.is_resident = Some(is_resident);
+        self.options.is_resident = Some(is_resident);
         self
     }
 
     /// Face matching aniqlik darajasini o'rnatadi (ixtiyoriy).
     #[must_use]
     pub fn with_threshold(mut self, threshold: Threshold) -> Self {
-        self.threshold = Some(threshold);
+        self.options.threshold = Some(threshold);
         self
     }
 
@@ -191,17 +179,17 @@ impl SessionWithPassport {
 
     /// Telefon raqamini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn phone_number(&self) -> Option<&PhoneNumber> {
-        self.phone_number.as_ref()
+        self.options.phone_number.as_ref()
     }
 
     /// Rezidentlik belgisini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn is_resident(&self) -> Option<bool> {
-        self.is_resident
+        self.options.is_resident
     }
 
     /// Face matching threshold qiymatini qaytaradi (agar o'rnatilgan bo'lsa).
     pub fn threshold(&self) -> Option<Threshold> {
-        self.threshold
+        self.options.threshold
     }
 }
 
@@ -382,4 +370,16 @@ impl SessionAttempt {
     pub fn reason_code(&self) -> Option<i32> {
         self.reason_code
     }
+}
+
+/// PINFL va Passport sessiyalari uchun umumiy ixtiyoriy
+/// parametrlar.
+#[derive(Debug, Default, Serialize)]
+struct SessionOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_number: Option<PhoneNumber>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_resident: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    threshold: Option<Threshold>,
 }

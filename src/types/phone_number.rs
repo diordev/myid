@@ -35,6 +35,9 @@ impl PhoneNumber {
     /// Telefon raqam uzunligi (`+` siz) — aynan 12 raqam.
     pub const DIGIT_LEN: usize = 12;
 
+    /// Uzbezbekiston telefon raqam prefixi (`+` siz).
+    pub const UZ_PREFIX: &str = "998";
+
     /// String qiymatdan `PhoneNumber` yaratadi.
     ///
     /// Boshidagi `+` belgisi qabul qilinadi va olib tashlanadi.
@@ -47,6 +50,12 @@ impl PhoneNumber {
     pub fn parse(value: impl AsRef<str>) -> MyIdResult<Self> {
         let raw = value.as_ref().trim();
         let digits = raw.strip_prefix('+').unwrap_or(raw);
+
+        if !digits.starts_with(Self::UZ_PREFIX) {
+            return Err(MyIdError::validation(format!(
+                "phone number must start with 998, got: {raw}"
+            )));
+        }
 
         if digits.len() != Self::DIGIT_LEN {
             return Err(MyIdError::validation(format!(
@@ -86,7 +95,7 @@ impl AsRef<str> for PhoneNumber {
 
 impl std::fmt::Display for PhoneNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "+{}", self.0)
+        f.write_str(&self.0)
     }
 }
 

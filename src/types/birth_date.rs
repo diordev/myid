@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// use myid::types::BirthDate;
 ///
 /// let d = BirthDate::parse("1990-05-15").unwrap();
-/// assert_eq!(d.to_formatted_string(), "1990-05-15");
+/// assert_eq!(d.to_string(), "1990-05-15");
 ///
 /// // Kabisa yili
 /// assert!(BirthDate::parse("2000-02-29").is_ok());
@@ -53,13 +53,22 @@ impl BirthDate {
         let date = NaiveDate::parse_from_str(raw, Self::FORMAT)
             .map_err(|_| MyIdError::validation(format!("birth_date is not a valid date: {raw}")))?;
 
+        if date > chrono::Local::now().date_naive() {
+            return Err(MyIdError::validation(format!(
+                "birth_date cannot be in the future: {raw}"
+            )));
+        }
+
         Ok(Self(date))
     }
 
-    /// Canonical string ko'rinishini qaytaradi (`YYYY-MM-DD`).
-    pub fn to_formatted_string(&self) -> String {
-        self.0.format(Self::FORMAT).to_string()
-    }
+    // /// Canonical string ko'rinishini qaytaradi (`YYYY-MM-DD`).
+    // // Bu metoddan foydalanuvchilarni .to_string() ga yo'naltirish kerak.
+    // // Metodni deprecated qiling yoki olib tashlang:
+    // #[deprecated(since = "0.2.0", note = "use `.to_string()` instead")]
+    // pub fn to_formatted_string(&self) -> String {
+    //     self.to_string()
+    // }
 
     /// Ichki [`NaiveDate`] qiymatni qaytaradi.
     ///

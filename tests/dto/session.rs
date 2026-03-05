@@ -78,7 +78,7 @@ fn pinfl_getters() {
         .with_threshold(Threshold::parse(0.85).unwrap());
 
     assert_eq!(req.pinfl().as_str(), "12345678901234");
-    assert_eq!(req.birth_date().to_formatted_string(), "1990-05-15");
+    assert_eq!(req.birth_date().to_string(), "1990-05-15");
     assert_eq!(
         req.phone_number().map(PhoneNumber::as_str),
         Some("998901234567")
@@ -95,7 +95,7 @@ fn passport_getters() {
     );
 
     assert_eq!(req.pass_data().as_str(), "AB1234567");
-    assert_eq!(req.birth_date().to_formatted_string(), "2000-01-01");
+    assert_eq!(req.birth_date().to_string(), "2000-01-01");
     assert_eq!(req.phone_number(), None);
 }
 

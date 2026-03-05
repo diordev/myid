@@ -26,7 +26,15 @@ pub use crate::types::{
 
 // DTO
 pub use crate::dto::{
-    AccessTokenResponse, CreateSessionRequest, ReuId, SessionAttempt, SessionResponse,
-    SessionStatus, SessionStatusResponse, SessionWithPassport, SessionWithPinfl, SessionWithReuid,
+    // AccessTokenResponse olib tashlandi — faqat internal cache uchun ishlatilgani uchun
+    CreateSessionRequest,
+    ReuId,
+    SessionAttempt,
+    SessionResponse,
+    SessionStatus,
+    SessionStatusResponse,
+    SessionWithPassport,
+    SessionWithPinfl,
+    SessionWithReuid,
     UserDataResponse,
 };

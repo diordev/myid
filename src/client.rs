@@ -287,12 +287,14 @@ impl MyIdClient {
             return Err(MyIdError::validation("code bo'sh bo'lishi mumkin emas"));
         }
 
-        let mut url = self.endpoint(USER_DATA_PATH)?;
-        url.query_pairs_mut().append_pair("code", code);
-        let url_str = url.to_string(); // closure uchun owned
+        let url = {
+            let mut u = self.endpoint(USER_DATA_PATH)?;
+            u.query_pairs_mut().append_pair("code", code);
+            u
+        };
 
         let response = self
-            .send_with_401_retry(|token| self.http.get(url_str.as_str()).bearer_auth(token).send())
+            .send_with_401_retry(|token| self.http.get(url.as_str()).bearer_auth(token).send())
             .await?;
         Self::handle_response(response).await
     }
@@ -334,8 +336,11 @@ impl MyIdClient {
             }
         }
 
-        // max_attempts >= 1 → oxirgi iteratsiyada doim return Err ishlaydi
-        unreachable!("authenticate: oxirgi urinishda doim Err qaytariladi")
+        // max_attempts >= 1 → oxirgi iteratsiya doim return qiladi.
+        // Bu qator yetib bo'lmaydi, lekin lib crate'da panic'dan saqlanamiz.
+        Err(MyIdError::internal(
+            "authenticate: retry loop kutilmagan tarzda tugadi",
+        ))
     }
 
     async fn send_with_401_retry<F, Fut>(&self, build_request: F) -> MyIdResult<reqwest::Response>
@@ -394,13 +399,13 @@ impl MyIdClient {
             .checked_add(Duration::from_secs(token.expires_in))
             .ok_or_else(|| MyIdError::internal("expires_at overflow"))?;
 
+        let access_token = token.access_token;
         let mut guard = self.token.lock().await;
         *guard = Some(TokenState {
-            access_token: token.access_token.clone(),
+            access_token: access_token.clone(), // cache uchun clone
             expires_at,
         });
-
-        Ok(token.access_token)
+        Ok(access_token)
     }
 
     // --- Private: Helpers ---
